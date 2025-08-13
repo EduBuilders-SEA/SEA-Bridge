@@ -42,7 +42,7 @@ const MessageContent = ({ message }: { message: Message }) => {
         return (
             <div className="flex items-center gap-2 p-3 bg-secondary rounded-md">
                 <FileText className="w-6 h-6 text-primary" />
-                <span className="font-medium font-body">{message.content}</span>
+                <span className="font-medium font-body text-card-foreground">{message.content}</span>
             </div>
         );
     }
