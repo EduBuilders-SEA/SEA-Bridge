@@ -1,4 +1,4 @@
-import { BookUser, Users } from 'lucide-react';
+import { BookUser, MessageSquareText, Users } from 'lucide-react';
 import Link from 'next/link';
 
 import {
@@ -25,7 +25,7 @@ export default function Home() {
             <h2 className="text-2xl font-headline font-semibold text-foreground">
               Choose your role to begin
             </h2>
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto">
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
               <Link href="/teacher" className="h-full">
                 <Card className="text-left hover:shadow-lg hover:border-primary transition-all duration-300 cursor-pointer h-full flex flex-col">
                   <CardHeader className="flex-1">
@@ -48,6 +48,19 @@ export default function Home() {
                     <CardTitle className="font-headline">I am a Parent</CardTitle>
                     <CardDescription className="font-body">
                       Receive translated and simplified updates about your child.
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+              <Link href="/sms" className="h-full">
+                <Card className="text-left hover:shadow-lg hover:border-primary transition-all duration-300 cursor-pointer h-full flex flex-col">
+                  <CardHeader className="flex-1">
+                    <div className="bg-accent/10 text-accent p-3 rounded-full w-fit mb-4">
+                      <MessageSquareText className="w-8 h-8" />
+                    </div>
+                    <CardTitle className="font-headline">Send SMS/WhatsApp</CardTitle>
+                    <CardDescription className="font-body">
+                      Low-connectivity? Send a message via SMS/WhatsApp.
                     </CardDescription>
                   </CardHeader>
                 </Card>
