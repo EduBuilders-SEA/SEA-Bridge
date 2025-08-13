@@ -37,7 +37,7 @@ const prompt = ai.definePrompt({
 
   Language: {{language}}
 
-  Summary:`,,
+  Summary:`,
 });
 
 const summarizeMessageFlow = ai.defineFlow(
