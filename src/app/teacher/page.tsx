@@ -5,16 +5,25 @@ import ChatPageLayout from '@/components/chat/chat-page-layout';
 import MessageInput from '@/components/chat/message-input';
 import ChatMessage from '@/components/chat/chat-message';
 import { conversation, type Message } from '@/lib/data';
+import { useToast } from "@/hooks/use-toast"
+import { sendSms } from '@/ai/flows/send-sms';
+
 
 const teacher = {
   name: 'Mrs. Davison',
   avatarUrl: 'https://placehold.co/100x100.png',
   role: 'Teacher',
+  phoneNumber: '+15555555555' // Parent's number
 };
 
 export default function TeacherPage() {
   const [messages, setMessages] = useState<Message[]>(conversation);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  const addMessage = (message: Message) => {
+    setMessages(prev => [...prev, message]);
+  }
 
   const handleSendMessage = (content: string) => {
     const newMessage: Message = {
@@ -25,8 +34,44 @@ export default function TeacherPage() {
       type: 'text',
       originalLanguage: 'English',
     };
-    setMessages([...messages, newMessage]);
+    addMessage(newMessage);
   };
+
+  const handleSendSms = async (content: string) => {
+    if (!content.trim()) return;
+
+    try {
+      const result = await sendSms({
+        phoneNumber: teacher.phoneNumber,
+        message: content,
+        senderRole: 'teacher',
+      });
+      
+      const newMessage: Message = {
+        id: String(messages.length + 1),
+        sender: 'teacher',
+        content: `${content}\n(Sent via SMS)`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: 'text',
+        originalLanguage: 'English',
+      };
+      addMessage(newMessage);
+
+      toast({
+        title: "Message Sent via SMS",
+        description: result.status,
+      });
+
+    } catch (error) {
+      console.error("SMS failed", error);
+      toast({
+        variant: "destructive",
+        title: "SMS Failed",
+        description: "Could not send the SMS at this time.",
+      });
+    }
+  };
+
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -42,7 +87,7 @@ export default function TeacherPage() {
             ))}
         </div>
         <div className="p-4 md:p-6 pt-2 border-t bg-background">
-            <MessageInput onSendMessage={handleSendMessage} />
+            <MessageInput onSendMessage={handleSendMessage} onSendSms={handleSendSms} />
         </div>
     </ChatPageLayout>
   );

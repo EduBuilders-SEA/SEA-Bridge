@@ -10,11 +10,13 @@ import { useToast } from "@/hooks/use-toast"
 // These are server functions, but we can call them from the client
 import { summarizeMessage } from '@/ai/flows/summarize-message';
 import { translateMessage } from '@/ai/flows/translate-message';
+import { sendSms } from '@/ai/flows/send-sms';
 
 const parent = {
   name: 'Mr. Chen',
   avatarUrl: 'https://placehold.co/100x100.png',
   role: 'Parent',
+  phoneNumber: '+15555555556' // Teacher's number
 };
 
 type DisplayMessage = Message & {
@@ -31,6 +33,10 @@ export default function ParentPage() {
   const { toast } = useToast()
 
 
+  const addMessage = (message: DisplayMessage) => {
+    setMessages(prev => [...prev, message]);
+  }
+
   const handleSendMessage = (content: string) => {
     const newMessage: DisplayMessage = {
       id: String(messages.length + 1),
@@ -40,8 +46,44 @@ export default function ParentPage() {
       type: 'text',
       originalLanguage: parentLanguage,
     };
-    setMessages([...messages, newMessage]);
+    addMessage(newMessage);
   };
+
+  const handleSendSms = async (content: string) => {
+    if (!content.trim()) return;
+
+    try {
+      const result = await sendSms({
+        phoneNumber: parent.phoneNumber,
+        message: content,
+        senderRole: 'parent',
+      });
+      
+      const newMessage: DisplayMessage = {
+        id: String(messages.length + 1),
+        sender: 'parent',
+        content: `${content}\n(Sent via SMS)`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: 'text',
+        originalLanguage: parentLanguage,
+      };
+      addMessage(newMessage);
+      
+      toast({
+        title: "Message Sent via SMS",
+        description: result.status,
+      });
+
+    } catch (error) {
+      console.error("SMS failed", error);
+      toast({
+        variant: "destructive",
+        title: "SMS Failed",
+        description: "Could not send the SMS at this time.",
+      });
+    }
+  };
+
 
   const handleTranslate = async (messageId: string) => {
     setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isTranslating: true } : m));
@@ -102,7 +144,7 @@ export default function ParentPage() {
         ))}
       </div>
       <div className="p-4 md:p-6 pt-2 border-t bg-background">
-        <MessageInput onSendMessage={handleSendMessage} placeholder={`Reply in ${parentLanguage}...`} />
+        <MessageInput onSendMessage={handleSendMessage} onSendSms={handleSendSms} placeholder={`Reply in ${parentLanguage}...`} />
       </div>
     </ChatPageLayout>
   );
