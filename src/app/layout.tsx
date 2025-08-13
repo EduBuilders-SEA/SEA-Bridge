@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'LinguaLearn Bridge',
+  title: 'SEA Bridge',
   description: 'A multilingual parent-teacher communication platform for Southeast Asia.',
 };
 

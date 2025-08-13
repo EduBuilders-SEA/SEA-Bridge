@@ -16,7 +16,7 @@ export default function Home() {
         <div className="max-w-4xl w-full">
           <Logo className="w-48 mx-auto mb-4" />
           <h1 className="text-4xl sm:text-5xl font-headline font-bold text-primary tracking-tight">
-            LinguaLearn Bridge
+            SEA Bridge
           </h1>
           <p className="mt-4 text-lg sm:text-xl text-muted-foreground font-body max-w-2xl mx-auto">
             Breaking down language barriers in education. Real-time, AI-powered communication for a global classroom.

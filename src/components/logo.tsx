@@ -5,7 +5,7 @@ const Logo = ({ className }: { className?: string }) => (
     className={className}
     viewBox="0 0 100 40"
     xmlns="http://www.w3.org/2000/svg"
-    aria-label="LinguaLearn Bridge Logo"
+    aria-label="SEA Bridge Logo"
   >
     <defs>
       <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
