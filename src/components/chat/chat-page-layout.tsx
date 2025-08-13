@@ -12,14 +12,15 @@ type ChatPageLayoutProps = {
 };
 
 export default function ChatPageLayout({ title, user, children }: ChatPageLayoutProps) {
+  const backLink = user.role.toLowerCase() === 'teacher' ? '/teacher' : '/parent';
   return (
     <div className="flex flex-col h-screen bg-background font-body">
       <header className="flex items-center justify-between p-4 border-b bg-card shadow-sm sticky top-0 z-10">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/">
+            <Link href={backLink}>
               <ArrowLeft className="w-5 h-5" />
-              <span className="sr-only">Back to Home</span>
+              <span className="sr-only">Back to Contacts</span>
             </Link>
           </Button>
           <div className="flex items-center gap-3">

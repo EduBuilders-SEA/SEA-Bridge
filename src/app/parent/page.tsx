@@ -1,151 +1,68 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
-import ChatPageLayout from '@/components/chat/chat-page-layout';
-import MessageInput from '@/components/chat/message-input';
-import ChatMessage from '@/components/chat/chat-message';
-import { conversation, type Message } from '@/lib/data';
-import { useToast } from "@/hooks/use-toast"
+import { useState } from 'react';
+import Link from 'next/link';
+import { Search } from 'lucide-react';
+import { contacts, Contact } from '@/lib/contacts';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import Logo from '@/components/logo';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
-// These are server functions, but we can call them from the client
-import { summarizeMessage } from '@/ai/flows/summarize-message';
-import { translateMessage } from '@/ai/flows/translate-message';
-import { sendSms } from '@/ai/flows/send-sms';
+export default function ParentContactsPage() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const teacherContacts = contacts.filter(c => c.role === 'teacher');
 
-const parent = {
-  name: 'Mr. Chen',
-  avatarUrl: 'https://placehold.co/100x100.png',
-  role: 'Parent',
-  phoneNumber: '+15555555556' // Teacher's number
-};
-
-type DisplayMessage = Message & {
-  translatedContent?: string;
-  summarizedContent?: string;
-  isTranslating?: boolean;
-  isSummarizing?: boolean;
-};
-
-export default function ParentPage() {
-  const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
-  const [parentLanguage] = useState('Mandarin Chinese');
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast()
-
-
-  const addMessage = (message: DisplayMessage) => {
-    setMessages(prev => [...prev, message]);
-  }
-
-  const handleSendMessage = (content: string) => {
-    const newMessage: DisplayMessage = {
-      id: String(messages.length + 1),
-      sender: 'parent',
-      content,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: 'text',
-      originalLanguage: parentLanguage,
-    };
-    addMessage(newMessage);
-  };
-
-  const handleSendSms = async (content: string) => {
-    if (!content.trim()) return;
-
-    try {
-      const result = await sendSms({
-        phoneNumber: parent.phoneNumber,
-        message: content,
-        senderRole: 'parent',
-      });
-      
-      const newMessage: DisplayMessage = {
-        id: String(messages.length + 1),
-        sender: 'parent',
-        content: `${content}\n(Sent via SMS)`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: 'text',
-        originalLanguage: parentLanguage,
-      };
-      addMessage(newMessage);
-      
-      toast({
-        title: "Message Sent via SMS",
-        description: result.status,
-      });
-
-    } catch (error) {
-      console.error("SMS failed", error);
-      toast({
-        variant: "destructive",
-        title: "SMS Failed",
-        description: "Could not send the SMS at this time.",
-      });
-    }
-  };
-
-
-  const handleTranslate = async (messageId: string) => {
-    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isTranslating: true } : m));
-    const messageToTranslate = messages.find(m => m.id === messageId);
-    if (messageToTranslate) {
-      try {
-        const result = await translateMessage({ message: messageToTranslate.content, targetLanguage: parentLanguage });
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, translatedContent: result.translatedMessage, isTranslating: false } : m));
-      } catch (error) {
-        console.error("Translation failed", error);
-        toast({
-          variant: "destructive",
-          title: "Translation Failed",
-          description: "Could not translate the message at this time.",
-        })
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isTranslating: false } : m));
-      }
-    }
-  };
-
-  const handleSummarize = async (messageId: string) => {
-    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: true } : m));
-    const messageToSummarize = messages.find(m => m.id === messageId);
-    if (messageToSummarize) {
-      try {
-        const contentToSummarize = messageToSummarize.translatedContent || messageToSummarize.content;
-        const result = await summarizeMessage({ message: contentToSummarize, language: parentLanguage });
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, summarizedContent: result.summary, isSummarizing: false } : m));
-      } catch (error) {
-        console.error("Summarization failed", error);
-        toast({
-          variant: "destructive",
-          title: "Summarization Failed",
-          description: "Could not summarize the message at this time.",
-        })
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: false } : m));
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
-  }, [messages]);
+  const filteredContacts = teacherContacts.filter(contact =>
+    contact.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <ChatPageLayout title="Conversation with Mrs. Davison" user={parent}>
-      <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6" ref={scrollAreaRef}>
-        {messages.map((msg) => (
-          <ChatMessage
-            key={msg.id}
-            message={msg}
-            currentUser="parent"
-            onTranslate={handleTranslate}
-            onSummarize={handleSummarize}
-          />
-        ))}
-      </div>
-      <div className="p-4 md:p-6 pt-2 border-t bg-background">
-        <MessageInput onSendMessage={handleSendMessage} onSendSms={handleSendSms} placeholder={`Reply in ${parentLanguage}...`} />
-      </div>
-    </ChatPageLayout>
+    <div className="flex flex-col h-screen bg-background font-body">
+       <header className="flex items-center justify-between p-4 border-b bg-card shadow-sm sticky top-0 z-10">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/">
+              <ArrowLeft className="w-5 h-5" />
+              <span className="sr-only">Back to Home</span>
+            </Link>
+          </Button>
+          <h1 className="text-lg font-headline font-semibold">Your Teacher Contacts</h1>
+        </div>
+        <Link href="/" className="hidden sm:block">
+            <Logo className="w-24 h-auto" />
+        </Link>
+      </header>
+      <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="relative mb-8">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by teacher's name..."
+              className="pl-10 w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {filteredContacts.map(contact => (
+              <Link href={`/parent/chat/${contact.id}`} key={contact.id}>
+                <Card className="p-4 text-center hover:shadow-lg hover:border-primary transition-all duration-300 cursor-pointer flex flex-col items-center">
+                  <Avatar className="w-20 h-20 mb-4">
+                    <AvatarImage src={contact.avatarUrl} alt={contact.name} data-ai-hint="teacher portrait" />
+                    <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <h3 className="font-headline font-semibold">{contact.name}</h3>
+                  <p className="text-sm text-muted-foreground">{contact.subject}</p>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }
