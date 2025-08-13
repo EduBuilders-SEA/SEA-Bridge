@@ -6,7 +6,7 @@ import MessageInput from '@/components/chat/message-input';
 import ChatMessage from '@/components/chat/chat-message';
 import { conversation, type Message } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast"
-import { notFound } from 'next/navigation';
+import { notFound, useSearchParams } from 'next/navigation';
 
 // These are server functions, but we can call them from the client
 import { summarizeMessage } from '@/ai/flows/summarize-message';
@@ -22,8 +22,11 @@ type DisplayMessage = Message & {
 };
 
 export default function ParentChatPage({ params }: { params: { contactId: string } }) {
+  const searchParams = useSearchParams();
+  const lang = searchParams.get('lang');
+
   const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
-  const [parentLanguage] = useState('Mandarin Chinese');
+  const [parentLanguage, setParentLanguage] = useState(lang || 'English');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast()
 

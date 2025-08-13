@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { PlusCircle, Search } from 'lucide-react';
+import { PlusCircle, Search, Languages } from 'lucide-react';
 import { contacts, type Contact } from '@/lib/contacts';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -11,10 +11,20 @@ import Logo from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { AddContactForm } from '@/components/chat/add-contact-form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Label } from '@/components/ui/label';
+import { languages } from '@/lib/languages';
 
 export default function ParentContactsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [allContacts, setAllContacts] = useState(contacts);
+  const [language, setLanguage] = useState('English');
 
   const teacherContacts = allContacts.filter(c => c.role === 'teacher');
 
@@ -49,27 +59,45 @@ export default function ParentContactsPage() {
       </header>
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-8 gap-4">
-            <div className="relative flex-1">
+          <div className="grid md:grid-cols-3 gap-4 mb-8">
+            <div className="relative md:col-span-2">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                 type="text"
                 placeholder="Search by teacher's name..."
-                className="pl-10 w-full"
+                className="pl-10 w-full h-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
+             <div className="grid gap-1.5">
+                <Label htmlFor="language-select" className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Languages className="w-4 h-4" />
+                    My Language
+                </Label>
+                <Select value={language} onValueChange={setLanguage}>
+                    <SelectTrigger id="language-select" className="w-full">
+                        <SelectValue placeholder="Select language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {languages.map(lang => (
+                            <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+          </div>
+          <div className="flex justify-end items-center mb-8">
             <AddContactForm role="teacher" onAddContact={handleAddContact}>
                 <Button>
                     <PlusCircle className="w-5 h-5 mr-2" />
-                    Add Contact
+                    Add Teacher Contact
                 </Button>
             </AddContactForm>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {filteredContacts.map(contact => (
-              <Link href={`/parent/chat/${contact.id}`} key={contact.id}>
+              <Link href={`/parent/chat/${contact.id}?lang=${encodeURIComponent(language)}`} key={contact.id}>
                 <Card className="p-4 text-center hover:shadow-lg hover:border-primary transition-all duration-300 cursor-pointer flex flex-col items-center">
                   <Avatar className="w-20 h-20 mb-4">
                     <AvatarImage src={contact.avatarUrl} alt={contact.name} data-ai-hint="teacher portrait" />
