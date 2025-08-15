@@ -12,7 +12,7 @@ type ChatPageLayoutProps = {
 };
 
 export default function ChatPageLayout({ title, user, children }: ChatPageLayoutProps) {
-  const backLink = user.role.toLowerCase() === 'teacher' ? `/teacher?name=${encodeURIComponent(user.name)}` : `/parent?name=${encodeURIComponent(user.name)}`;
+  const backLink = user.role.toLowerCase() === 'teacher' ? `/teacher` : `/parent`;
   return (
     <div className="flex flex-col h-screen bg-background font-body">
       <header className="flex items-center justify-between p-4 border-b bg-card shadow-sm sticky top-0 z-10">

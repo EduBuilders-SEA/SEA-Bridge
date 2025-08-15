@@ -8,15 +8,29 @@ import { conversation, type Message } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast"
 import { sendSms } from '@/ai/flows/send-sms';
 import { contacts } from '@/lib/contacts';
-import { notFound, useSearchParams } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
 
 
 export default function TeacherChatPage({ params }: { params: { contactId: string } }) {
   const [messages, setMessages] = useState<Message[]>(conversation);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const searchParams = useSearchParams();
-  const teacherName = searchParams.get('name') || 'Mrs. Davison';
+  const [teacherName, setTeacherName] = useState('Teacher');
+  const router = useRouter();
+  
+  useEffect(() => {
+    const storedUser = localStorage.getItem('sea-bridge-user');
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      if (user.role !== 'teacher') {
+        router.push('/onboarding?role=teacher');
+      } else {
+        setTeacherName(user.name);
+      }
+    } else {
+      router.push('/onboarding?role=teacher');
+    }
+  }, [router]);
 
   const contact = contacts.find(c => c.id === params.contactId && c.role === 'parent');
   

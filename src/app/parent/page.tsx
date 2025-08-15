@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PlusCircle, Search, Languages } from 'lucide-react';
 import { contacts, type Contact } from '@/lib/contacts';
@@ -20,14 +20,28 @@ import {
 } from "@/components/ui/select"
 import { Label } from '@/components/ui/label';
 import { languages } from '@/lib/languages';
-import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 export default function ParentContactsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [allContacts, setAllContacts] = useState(contacts);
   const [language, setLanguage] = useState('English');
-  const searchParams = useSearchParams();
-  const userName = searchParams.get('name') || 'Parent';
+  const [userName, setUserName] = useState('Parent');
+  const router = useRouter();
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('sea-bridge-user');
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      if (user.role !== 'parent') {
+        router.push('/onboarding?role=parent');
+      } else {
+        setUserName(user.name);
+      }
+    } else {
+      router.push('/onboarding?role=parent');
+    }
+  }, [router]);
 
   const teacherContacts = allContacts.filter(c => c.role === 'teacher');
 

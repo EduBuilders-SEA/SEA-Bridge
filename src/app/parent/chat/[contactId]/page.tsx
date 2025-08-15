@@ -6,7 +6,7 @@ import MessageInput from '@/components/chat/message-input';
 import ChatMessage from '@/components/chat/chat-message';
 import { conversation, type Message } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast"
-import { notFound, useSearchParams } from 'next/navigation';
+import { notFound, useSearchParams, useRouter } from 'next/navigation';
 
 // These are server functions, but we can call them from the client
 import { summarizeMessage } from '@/ai/flows/summarize-message';
@@ -23,8 +23,23 @@ type DisplayMessage = Message & {
 
 export default function ParentChatPage({ params }: { params: { contactId: string } }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const lang = searchParams.get('lang');
-  const parentName = searchParams.get('name') || 'Mr. Chen';
+  const [parentName, setParentName] = useState('Parent');
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('sea-bridge-user');
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      if (user.role !== 'parent') {
+        router.push('/onboarding?role=parent');
+      } else {
+        setParentName(user.name);
+      }
+    } else {
+      router.push('/onboarding?role=parent');
+    }
+  }, [router]);
 
   const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
   const [parentLanguage, setParentLanguage] = useState(lang || 'English');

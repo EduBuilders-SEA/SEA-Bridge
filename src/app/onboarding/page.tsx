@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,17 +29,29 @@ export default function OnboardingPage() {
     },
   });
 
+  useEffect(() => {
+    // If user info is already in localStorage, redirect them
+    const storedUser = localStorage.getItem('sea-bridge-user');
+    if (storedUser) {
+      const { role } = JSON.parse(storedUser);
+      router.push(`/${role}`);
+    }
+  }, [router]);
+
+
   if (!role || (role !== 'teacher' && role !== 'parent')) {
     // Or redirect to home, or show an error
-    return <div className="flex items-center justify-center min-h-screen">Invalid role selected.</div>;
+    return <div className="flex items-center justify-center min-h-screen">Invalid role selected. Go back to the <a href="/" className="underline pl-1">home page</a>.</div>;
   }
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    const params = new URLSearchParams({
-        name: values.name,
-        phone: values.phoneNumber
-    });
-    router.push(`/${role}?${params.toString()}`);
+    const userProfile = {
+      name: values.name,
+      phoneNumber: values.phoneNumber,
+      role: role
+    };
+    localStorage.setItem('sea-bridge-user', JSON.stringify(userProfile));
+    router.push(`/${role}`);
   }
   
   const title = `Welcome, ${role === 'teacher' ? 'Teacher' : 'Parent'}!`;

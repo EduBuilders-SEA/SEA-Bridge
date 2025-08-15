@@ -1,4 +1,8 @@
-import { BookUser, MessageSquareText, Users } from 'lucide-react';
+"use client";
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { BookUser, Users, LogIn } from 'lucide-react';
 import Link from 'next/link';
 
 import {
@@ -8,8 +12,76 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import Logo from '@/components/logo';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Home() {
+    const [userRole, setUserRole] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const router = useRouter();
+
+    useEffect(() => {
+        const storedUser = localStorage.getItem('sea-bridge-user');
+        if (storedUser) {
+            setUserRole(JSON.parse(storedUser).role);
+        }
+        setLoading(false);
+    }, []);
+
+    const handleLogout = () => {
+        localStorage.removeItem('sea-bridge-user');
+        setUserRole(null);
+    };
+
+    if (loading) {
+        return (
+             <div className="flex min-h-screen w-full bg-background">
+                <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 text-center">
+                    <div className="max-w-4xl w-full flex flex-col items-center">
+                        <Skeleton className="w-48 h-24 mb-4" />
+                        <Skeleton className="h-12 w-1/2 mb-4" />
+                        <Skeleton className="h-8 w-3/4" />
+
+                        <div className="mt-12 w-full max-w-2xl">
+                             <Skeleton className="h-8 w-1/3 mx-auto mb-8" />
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <Skeleton className="h-48" />
+                                <Skeleton className="h-48" />
+                             </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        )
+    }
+
+    if (userRole) {
+        return (
+            <div className="flex min-h-screen w-full bg-background">
+              <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 text-center">
+                <div className="max-w-4xl w-full">
+                  <Logo className="w-48 mx-auto mb-4" />
+                  <h1 className="text-4xl sm:text-5xl font-headline font-bold text-primary tracking-tight">
+                    Welcome Back!
+                  </h1>
+                   <p className="mt-4 text-lg sm:text-xl text-muted-foreground font-body max-w-2xl mx-auto">
+                    You are signed in as a {userRole}.
+                  </p>
+                  <div className="mt-12 flex flex-col items-center gap-4">
+                     <Button asChild size="lg">
+                        <Link href={`/${userRole}`}>
+                            <LogIn className="mr-2" />
+                            Go to my Dashboard
+                        </Link>
+                     </Button>
+                     <Button variant="link" onClick={handleLogout}>Not you? Log out</Button>
+                  </div>
+                </div>
+              </main>
+            </div>
+        )
+    }
+
   return (
     <div className="flex min-h-screen w-full bg-background">
       <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 text-center">
