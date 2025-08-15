@@ -8,13 +8,15 @@ import { conversation, type Message } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast"
 import { sendSms } from '@/ai/flows/send-sms';
 import { contacts } from '@/lib/contacts';
-import { notFound } from 'next/navigation';
+import { notFound, useSearchParams } from 'next/navigation';
 
 
 export default function TeacherChatPage({ params }: { params: { contactId: string } }) {
   const [messages, setMessages] = useState<Message[]>(conversation);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const teacherName = searchParams.get('name') || 'Mrs. Davison';
 
   const contact = contacts.find(c => c.id === params.contactId && c.role === 'parent');
   
@@ -23,7 +25,7 @@ export default function TeacherChatPage({ params }: { params: { contactId: strin
   }
 
   const teacher = {
-    name: 'Mrs. Davison',
+    name: teacherName,
     avatarUrl: 'https://placehold.co/100x100.png',
     role: 'Teacher',
   };
@@ -86,8 +88,11 @@ export default function TeacherChatPage({ params }: { params: { contactId: strin
     }
   }, [messages]);
 
+  const layoutTitle = `Conversation with ${contact.name}`;
+  const layoutUser = { name: teacher.name, avatarUrl: teacher.avatarUrl, role: 'Teacher' };
+
   return (
-    <ChatPageLayout title={`Conversation with ${contact.name}`} user={teacher}>
+    <ChatPageLayout title={layoutTitle} user={layoutUser}>
         <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6" ref={scrollAreaRef}>
             {messages.map((msg) => (
                 <ChatMessage key={msg.id} message={msg} currentUser="teacher" />

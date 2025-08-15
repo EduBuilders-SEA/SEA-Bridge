@@ -20,11 +20,14 @@ import {
 } from "@/components/ui/select"
 import { Label } from '@/components/ui/label';
 import { languages } from '@/lib/languages';
+import { useSearchParams } from 'next/navigation';
 
 export default function ParentContactsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [allContacts, setAllContacts] = useState(contacts);
   const [language, setLanguage] = useState('English');
+  const searchParams = useSearchParams();
+  const userName = searchParams.get('name') || 'Parent';
 
   const teacherContacts = allContacts.filter(c => c.role === 'teacher');
 
@@ -51,7 +54,7 @@ export default function ParentContactsPage() {
               <span className="sr-only">Back to Home</span>
             </Link>
           </Button>
-          <h1 className="text-lg font-headline font-semibold">Your Teacher Contacts</h1>
+          <h1 className="text-lg font-headline font-semibold">{userName}'s Teacher Contacts</h1>
         </div>
         <Link href="/" className="hidden sm:block">
             <Logo className="w-24 h-auto" />

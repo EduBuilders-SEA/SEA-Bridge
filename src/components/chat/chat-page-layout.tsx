@@ -12,7 +12,7 @@ type ChatPageLayoutProps = {
 };
 
 export default function ChatPageLayout({ title, user, children }: ChatPageLayoutProps) {
-  const backLink = user.role.toLowerCase() === 'teacher' ? '/teacher' : '/parent';
+  const backLink = user.role.toLowerCase() === 'teacher' ? `/teacher?name=${encodeURIComponent(user.name)}` : `/parent?name=${encodeURIComponent(user.name)}`;
   return (
     <div className="flex flex-col h-screen bg-background font-body">
       <header className="flex items-center justify-between p-4 border-b bg-card shadow-sm sticky top-0 z-10">
@@ -30,7 +30,6 @@ export default function ChatPageLayout({ title, user, children }: ChatPageLayout
             </Avatar>
             <div>
               <h1 className="text-lg font-headline font-semibold">{title}</h1>
-              <p className="text-sm text-muted-foreground">{user.role}</p>
             </div>
           </div>
         </div>

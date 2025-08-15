@@ -11,10 +11,13 @@ import Logo from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { AddContactForm } from '@/components/chat/add-contact-form';
+import { useSearchParams } from 'next/navigation';
 
 export default function TeacherContactsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [allContacts, setAllContacts] = useState(contacts);
+  const searchParams = useSearchParams();
+  const userName = searchParams.get('name') || 'Teacher';
 
   const parentContacts = allContacts.filter(c => c.role === 'parent');
 
@@ -41,7 +44,7 @@ export default function TeacherContactsPage() {
               <span className="sr-only">Back to Home</span>
             </Link>
           </Button>
-          <h1 className="text-lg font-headline font-semibold">Your Parent Contacts</h1>
+          <h1 className="text-lg font-headline font-semibold">{userName}'s Parent Contacts</h1>
         </div>
         <Link href="/" className="hidden sm:block">
             <Logo className="w-24 h-auto" />

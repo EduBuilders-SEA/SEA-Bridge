@@ -24,6 +24,7 @@ type DisplayMessage = Message & {
 export default function ParentChatPage({ params }: { params: { contactId: string } }) {
   const searchParams = useSearchParams();
   const lang = searchParams.get('lang');
+  const parentName = searchParams.get('name') || 'Mr. Chen';
 
   const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
   const [parentLanguage, setParentLanguage] = useState(lang || 'English');
@@ -37,7 +38,7 @@ export default function ParentChatPage({ params }: { params: { contactId: string
   }
 
   const parent = {
-    name: 'Mr. Chen',
+    name: parentName,
     avatarUrl: 'https://placehold.co/100x100.png',
     role: 'Parent',
   };
@@ -138,9 +139,14 @@ export default function ParentChatPage({ params }: { params: { contactId: string
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages]);
+  
+  // Pass user's name to ChatPageLayout, but for the other person in chat.
+  const layoutTitle = `Conversation with ${contact.name}`;
+  const layoutUser = { name: parent.name, avatarUrl: parent.avatarUrl, role: 'Parent' };
+
 
   return (
-    <ChatPageLayout title={`Conversation with ${contact.name}`} user={parent}>
+    <ChatPageLayout title={layoutTitle} user={layoutUser}>
       <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6" ref={scrollAreaRef}>
         {messages.map((msg) => (
           <ChatMessage

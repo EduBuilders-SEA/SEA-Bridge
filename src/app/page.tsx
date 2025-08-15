@@ -26,7 +26,7 @@ export default function Home() {
               Choose your role to begin
             </h2>
             <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto">
-              <Link href="/teacher" className="h-full">
+              <Link href="/onboarding?role=teacher" className="h-full">
                 <Card className="text-left hover:shadow-lg hover:border-primary transition-all duration-300 cursor-pointer h-full flex flex-col">
                   <CardHeader className="flex-1">
                     <div className="bg-primary/10 text-primary p-3 rounded-full w-fit mb-4">
@@ -39,7 +39,7 @@ export default function Home() {
                   </CardHeader>
                 </Card>
               </Link>
-              <Link href="/parent" className="h-full">
+              <Link href="/onboarding?role=parent" className="h-full">
                 <Card className="text-left hover:shadow-lg hover:border-primary transition-all duration-300 cursor-pointer h-full flex flex-col">
                   <CardHeader className="flex-1">
                     <div className="bg-primary/10 text-primary p-3 rounded-full w-fit mb-4">
