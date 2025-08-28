@@ -154,8 +154,7 @@ const VoiceNotePlayer = ({ audioDataUri, isSentByCurrentUser }: { audioDataUri: 
 const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, isSentByCurrentUser: boolean }) => {
     if (message.type === 'document') {
         const isImage = message.content.match(/\.(jpeg|jpg|gif|png)$/) != null;
-        const textColor = isSentByCurrentUser ? 'text-primary-foreground' : 'text-card-foreground';
-
+        
         return (
             <div>
                  {isImage && message.fileUrl ? (
@@ -169,28 +168,39 @@ const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, is
                     <a 
                         href={message.fileUrl} 
                         download={message.content}
-                        className="flex items-center gap-3 p-3 bg-secondary rounded-md hover:bg-secondary/90 transition-colors"
+                        className={cn(
+                            "flex items-center gap-3 p-3 rounded-md transition-colors",
+                            isSentByCurrentUser 
+                                ? "bg-primary-foreground/10 hover:bg-primary-foreground/20"
+                                : "bg-muted hover:bg-muted/80"
+                        )}
                     >
                         <FileText className="w-6 h-6 text-primary flex-shrink-0" />
                         <div className="flex-1 overflow-hidden">
-                            <p className={cn("font-medium font-body truncate", textColor)}>
+                            <p className={cn(
+                                "font-medium font-body truncate", 
+                                isSentByCurrentUser ? 'text-primary-foreground' : 'text-card-foreground'
+                            )}>
                                 {message.content}
                             </p>
-                             <p className="text-xs text-muted-foreground">Click to download</p>
+                             <p className={cn(
+                                "text-xs",
+                                isSentByCurrentUser ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                             )}>Click to download</p>
                         </div>
-                        <Download className="w-5 h-5 text-muted-foreground" />
+                        <Download className={cn("w-5 h-5", isSentByCurrentUser ? 'text-primary-foreground/80' : 'text-muted-foreground')} />
                     </a>
                 )}
                  {(message.isSummarizing || message.summary) && (
                     <div className="mt-3 pt-3 border-t border-border/50">
                         <p className={cn("text-xs font-bold mb-1 font-headline", 'text-primary')}>Summary</p>
                         {message.isSummarizing && !message.summary && (
-                            <div className={cn("flex items-center gap-2", textColor + '/90' )}>
+                            <div className="flex items-center gap-2 text-card-foreground/90">
                             <Loader2 className="w-4 h-4 animate-spin" />
                             <span className="text-sm">Summarizing...</span>
                             </div>
                         )}
-                        {message.summary && <p className={cn("font-body text-sm whitespace-pre-wrap", textColor + '/90')}>{message.summary}</p>}
+                        {message.summary && <p className={cn("font-body text-sm whitespace-pre-wrap", 'text-card-foreground/90')}>{message.summary}</p>}
                     </div>
                 )}
             </div>
