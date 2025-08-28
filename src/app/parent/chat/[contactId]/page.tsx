@@ -14,6 +14,7 @@ import { ProgressSummaryCard, ProgressSummaryCardSkeleton } from '@/components/c
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { summarizeConversation, type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
+import { DateRangePicker } from '@/components/chat/date-range-picker';
 
 
 type DisplayMessage = Message & {
@@ -174,8 +175,7 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
         </TabsContent>
          <TabsContent value="summary" className="flex-1 overflow-y-auto p-4 md:p-6">
             <div className="flex justify-end mb-4">
-                 {/* Placeholder for Date Range Picker */}
-                <Card className="p-2"><CardContent className="p-0">Date Range Picker Coming Soon</CardContent></Card>
+                 <DateRangePicker />
             </div>
             {isGeneratingSummary && <ProgressSummaryCardSkeleton />}
             {summary && (
