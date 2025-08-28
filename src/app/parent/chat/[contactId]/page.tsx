@@ -60,6 +60,12 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
   const [parentName, setParentName] = useState('Parent');
   const [summary, setSummary] = useState<SummarizeConversationOutput | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
+  const [parentLanguage, setParentLanguage] = useState(lang || 'English');
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast()
+
+  const contact = contacts.find(c => c.id === contactId && c.role === 'teacher');
 
   useEffect(() => {
     const storedUser = localStorage.getItem('sea-bridge-user');
@@ -75,12 +81,52 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
     }
   }, [router]);
 
-  const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
-  const [parentLanguage, setParentLanguage] = useState(lang || 'English');
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast()
+  useEffect(() => {
+    const autoTranslateMessages = async () => {
+      if (parentLanguage === 'English') return;
 
-  const contact = contacts.find(c => c.id === contactId && c.role === 'teacher');
+      const messagesToTranslate = messages.filter(
+        m => m.sender === 'teacher' && m.type === 'text' && !m.translatedContent
+      );
+
+      if (messagesToTranslate.length === 0) return;
+
+      setMessages(prev => prev.map(m => messagesToTranslate.find(mt => mt.id === m.id) ? { ...m, isTranslating: true } : m));
+
+      try {
+        const translationPromises = messagesToTranslate.map(message =>
+          translateMessage({
+            content: message.content,
+            targetLanguage: parentLanguage,
+          }).then(result => ({
+            id: message.id,
+            translatedContent: result.translation,
+          }))
+        );
+
+        const translations = await Promise.all(translationPromises);
+
+        setMessages(prev =>
+          prev.map(m => {
+            const translation = translations.find(t => t.id === m.id);
+            return translation ? { ...m, translatedContent: translation.translatedContent, isTranslating: false } : m;
+          })
+        );
+      } catch (error) {
+        console.error('Failed to auto-translate messages:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Could not automatically translate messages.',
+        });
+        setMessages(prev => prev.map(m => messagesToTranslate.find(mt => mt.id === m.id) ? { ...m, isTranslating: false } : m));
+      }
+    };
+
+    autoTranslateMessages();
+    // We only want this to run once on load, with the initial messages.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parentLanguage]);
   
   if (!contact) {
     notFound();
@@ -106,34 +152,6 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
       originalLanguage: parentLanguage,
     };
     addMessage(newMessage);
-  };
-
-  const handleTranslate = async (messageId: string) => {
-    const message = messages.find(m => m.id === messageId);
-    if (!message || message.translatedContent) return;
-
-    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isTranslating: true } : m));
-    try {
-      const result = await translateMessage({
-        content: message.content,
-        targetLanguage: parentLanguage,
-      });
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === messageId
-            ? { ...m, translatedContent: result.translation, isTranslating: false }
-            : m
-        )
-      );
-    } catch (error) {
-       console.error('Failed to translate message:', error);
-       toast({
-         variant: 'destructive',
-         title: 'Error',
-         description: 'Could not translate the message. Please try again.',
-       });
-       setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isTranslating: false } : m));
-    }
   };
 
   const handleSimplify = async (messageId: string) => {
@@ -213,7 +231,6 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
                 key={msg.id}
                 message={msg}
                 currentUser="parent"
-                onTranslate={handleTranslate}
                 onSimplify={handleSimplify}
               />
             ))}

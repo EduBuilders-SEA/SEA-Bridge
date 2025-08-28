@@ -63,10 +63,16 @@ const MessageContent = ({ message }: { message: Message }) => {
     return (
         <>
             <p className="font-body text-sm whitespace-pre-wrap">{message.content}</p>
-            {message.translatedContent && (
+            {(message.isTranslating || message.translatedContent) && (
                 <div className="mt-3 pt-3 border-t border-border/50">
                     <p className="text-xs font-bold text-primary mb-1 font-headline">Translation</p>
-                    <p className="font-body text-sm text-primary/90">{message.translatedContent}</p>
+                    {message.isTranslating && !message.translatedContent && (
+                        <div className="flex items-center gap-2 text-primary/90">
+                           <Loader2 className="w-4 h-4 animate-spin" />
+                           <span className="text-sm">Translating...</span>
+                        </div>
+                    )}
+                    {message.translatedContent && <p className="font-body text-sm text-primary/90">{message.translatedContent}</p>}
                 </div>
             )}
              {message.simplifiedContent && (
