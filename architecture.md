@@ -15,7 +15,7 @@ graph TD
         C[Genkit AI Flows (as Server Actions)]
         B -- Renders & Serves --> A
         A -- Calls UI AI Flows --> C
-        B -- Calls Backend API --> I
+        B -- Calls Backend API w/ JWT --> I
     end
 
     subgraph External Services
@@ -32,12 +32,17 @@ graph TD
             J[SMS Gateway (e.g., Twilio)]
         end
 
+        %% Auth Flow
+        A -- 1. Login --> D
+        D -- 2. Issues JWT --> A
+
+        %% AI & Backend Flows
         C -- Invokes AI Model via HTTPS --> H
 
-        I -- Authenticates via --> D
-        I -- 1. Writes message to --> F
-        F -- 2. Triggers event --> E
-        E -- 3. Pushes update to --> A
+        I -- 3. Validates JWT with --> D
+        I -- 4. Writes message to --> F
+        F -- 5. Triggers event --> E
+        E -- 6. Pushes update to --> A
         A -- Subscribes for Live Chat --> E
         I -- Generates Signed URLs for --> G
         A -- Uploads/Downloads Files --> G
@@ -60,7 +65,7 @@ graph TD
 ### Component Breakdown:
 
 1.  **Unified Frontend & Backend (Next.js + Genkit):**
-    *   **Framework:** **Next.js with App Router**. This will handle both the frontend UI and the backend logic for UI-centric features (document summarization, voice note transcription).
+    *   **Framework:** **Next.js with App Router**. This will handle both the frontend UI and the backend logic for UI-centric features (document summarization, voice note transcription). Hosted on **Vercel**.
     *   **AI Logic:** **Genkit Flows** written in TypeScript will continue to power features directly initiated by the user in the UI.
     *   **UI:** Built with **shadcn/ui** and **Tailwind CSS**.
 
@@ -69,9 +74,10 @@ graph TD
     *   **SMS Gateway Integration:** The FastAPI service will handle all interactions with a third-party SMS provider (e.g., Twilio). It will have an endpoint for sending messages and a webhook for receiving inbound replies.
     *   **Inbound Message Translation (SEA-LION INNOVATION HOTSPOT):** When an SMS is received from a parent, the FastAPI service will call the **SEA-LION model** to translate the message into English before storing it. This is a key point of innovation.
 
-3.  **Authentication (Supabase):**
+3.  **Authentication & Permissions (Supabase):**
     *   **Service:** **Supabase Auth.**
-    *   **Usage:** The FastAPI service will validate JWTs passed from the Next.js frontend to secure its endpoints.
+    *   **Usage:** Supabase handles user login and issues a secure JSON Web Token (JWT).
+    *   **Access Control:** The **FastAPI backend** requires a valid JWT for all its endpoints. It validates the token with Supabase Auth on every request, ensuring that only authenticated users can access the service. This acts as the primary security boundary. Further permissions can be enforced using Supabase's Row Level Security (RLS) on the database itself.
 
 4.  **Database (Supabase):**
     *   **Service:** **Supabase Postgres.**
@@ -79,6 +85,6 @@ graph TD
 
 5.  **Real-time Chat (Supabase):**
     *   **Service:** **Supabase Realtime.**
-    *   **Usage:** The FastAPI backend will write messages to the database. The Next.js frontend will subscribe directly to database changes via Supabase Realtime to update the chat UI instantly.
+    *   **Usage:** The FastAPI backend writes new messages to the database. The Next.js frontend subscribes directly to database changes via Supabase Realtime (the `pub/sub` model) to update the chat UI instantly.
 
 This hybrid architecture allows the team to leverage the speed of Next.js/Genkit for the frontend while enabling the Python team to build the core backend infrastructure and integrate the SEA-Lion model in a meaningful way.
