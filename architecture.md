@@ -2,7 +2,7 @@
 
 This document outlines a pragmatic technical architecture for the LinguaLearn Bridge application, designed for rapid development within a hackathon timeline. The primary goal is to maximize developer velocity to focus on the core user experience and the innovative use of the SEA-LION LLM.
 
-**Core Philosophy:** Use a tightly integrated, modern stack that minimizes infrastructure setup and maximizes feature development speed. A unified Next.js + Genkit stack is the fastest path to a winning prototype.
+**Core Philosophy:** Use a hybrid approach. A tightly integrated Next.js + Genkit stack for the frontend and UI-centric AI features, and a dedicated Python (FastAPI) backend for core backend services like SMS integration, which leverages the team's Python expertise.
 
 ```mermaid
 graph TD
@@ -14,7 +14,8 @@ graph TD
         B[Next.js Frontend]
         C[Genkit AI Flows (as Server Actions)]
         B -- Renders & Serves --> A
-        A -- Calls AI Flows --> C
+        A -- Calls UI AI Flows --> C
+        B -- Calls Backend API --> I
     end
 
     subgraph External Services
@@ -25,17 +26,23 @@ graph TD
             G[Supabase Storage]
         end
 
-        subgraph AI
+        subgraph AI & Comms
             H[SEA-LION Model Endpoint]
+            I[FastAPI Backend Service]
+            J[SMS Gateway (e.g., Twilio)]
         end
 
-        C -- Authenticates via --> D
-        C -- Queries/Mutates DB --> F
-        C -- Publishes to & Listens via --> E
-        A -- Subscribes for Live Chat --> E
-        C -- Generates Signed URLs for --> G
-        A -- Uploads/Downloads Files --> G
         C -- Invokes AI Model via HTTPS --> H
+
+        I -- Authenticates via --> D
+        I -- Queries/Mutates DB --> F
+        I -- Publishes to --> E
+        A -- Subscribes for Live Chat --> E
+        I -- Generates Signed URLs for --> G
+        A -- Uploads/Downloads Files --> G
+
+        I -- Sends/Receives SMS via --> J
+        I -- Invokes SEA-LION for Translation --> H
     end
 
     %% Flow Descriptions
@@ -45,36 +52,32 @@ graph TD
 
     class A user;
     class B,C vercel;
-    class D,E,F,G,H services;
+    class D,E,F,G,H,I,J services;
 
 ```
 
 ### Component Breakdown:
 
 1.  **Unified Frontend & Backend (Next.js + Genkit):**
-    *   **Framework:** **Next.js with App Router**. This will handle both the frontend UI and the backend logic.
-    *   **AI Logic:** **Genkit Flows** written in TypeScript. These flows act as our backend, are marked with the `'use server'` directive, and can be called directly and securely from our React components. This eliminates the need for a separate API layer.
+    *   **Framework:** **Next.js with App Router**. This will handle both the frontend UI and the backend logic for UI-centric features (document summarization, voice note transcription).
+    *   **AI Logic:** **Genkit Flows** written in TypeScript will continue to power features directly initiated by the user in the UI.
     *   **UI:** Built with **shadcn/ui** and **Tailwind CSS**.
-    *   **Forms:** **React Hook Form** for managing form state and **Zod** for validation.
 
-2.  **Authentication (Supabase):**
+2.  **SMS & Core Backend (FastAPI - Python):**
+    *   **Framework:** **FastAPI**. This Python service will be the integration point for core communication logic. This is the primary area for the Python team.
+    *   **SMS Gateway Integration:** The FastAPI service will handle all interactions with a third-party SMS provider (e.g., Twilio). It will have an endpoint for sending messages and a webhook for receiving inbound replies.
+    *   **Inbound Message Translation (SEA-LION INNOVATION HOTSPOT):** When an SMS is received from a parent, the FastAPI service will call the **SEA-LION model** to translate the message into English before storing it. This is a key point of innovation.
+
+3.  **Authentication (Supabase):**
     *   **Service:** **Supabase Auth.**
-    *   **Usage:** Manages user sign-up, sign-in, and JWT issuance. The Genkit flows will validate tokens on each call.
+    *   **Usage:** The FastAPI service will validate JWTs passed from the Next.js frontend to secure its endpoints.
 
-3.  **Database (Supabase):**
+4.  **Database (Supabase):**
     *   **Service:** **Supabase Postgres.**
-    *   **Client:** The **Supabase.js client** will be used directly in Genkit flows for all database operations. This is simpler and faster than adding a separate ORM like Drizzle for a hackathon.
+    *   **Client:** The **FastAPI backend** will be primarily responsible for all database operations using the `supabase-py` client.
 
-4.  **Real-time Chat (Supabase):**
+5.  **Real-time Chat (Supabase):**
     *   **Service:** **Supabase Realtime.**
-    *   **Usage:** Provides real-time capabilities out-of-the-box. The frontend will subscribe directly to database changes, and the Genkit flows will write to the database, triggering real-time updates.
+    *   **Usage:** The FastAPI backend will write messages to the database. The Next.js frontend will subscribe directly to database changes via Supabase Realtime to update the chat UI instantly.
 
-5.  **AI/ML (Innovation Hotspot):**
-    *   **Primary AI Service:** **SEA-Lion Model Endpoint.**
-    *   **Point of Innovation:** The **`transcribe-and-translate` and `translate-message`** flows are the prime candidates for showcasing the SEA-Lion model's unique capabilities. Use it here to demonstrate superior handling of Southeast Asian languages and dialects compared to generic models. Genkit can easily make `fetch` requests to any HTTPS endpoint.
-
-6.  **File Storage (Supabase):**
-    *   **Service:** **Supabase Storage.**
-    *   **Usage:** Used to store user-uploaded files like voice notes and documents.
-
-This integrated architecture is the most direct path to building a feature-rich, impressive application within the tight constraints of a hackathon.
+This hybrid architecture allows the team to leverage the speed of Next.js/Genkit for the frontend while enabling the Python team to build the core backend infrastructure and integrate the SEA-Lion model in a meaningful way.
