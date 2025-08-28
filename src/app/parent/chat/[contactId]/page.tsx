@@ -204,6 +204,19 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
     }
   }
 
+  const handleSendFile = (file: File) => {
+     const newMessage: DisplayMessage = {
+      id: String(messages.length + 1),
+      sender: 'parent',
+      content: file.name,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: 'document',
+      originalLanguage: 'English',
+      fileUrl: URL.createObjectURL(file), // Create a temporary URL for the file
+    };
+    addMessage(newMessage);
+  };
+
 
   const handleSimplify = async (messageId: string) => {
     const message = messages.find(m => m.id === messageId);
@@ -318,6 +331,7 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
             <MessageInput 
               onSendMessage={handleSendMessage} 
               onSendVoice={handleSendVoice}
+              onSendFile={handleSendFile}
               placeholder={`Reply in ${parentLanguage}...`} 
             />
           </div>
@@ -349,3 +363,5 @@ export default function ParentChatPage({ params }: { params: { contactId: string
     </Suspense>
   )
 }
+
+    
