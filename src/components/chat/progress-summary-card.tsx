@@ -77,7 +77,7 @@ export function ProgressSummaryCard({
   studentName = "Student",
   summaryText,
   actionItems = [],
-  attendance = { present: 18, absent: 1, tardy: 1 }, // Default attendance for UI consistency
+  attendance,
   dateRange = "This Month",
 }: ProgressSummaryCardProps) {
   return (

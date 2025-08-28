@@ -71,7 +71,12 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
       setIsGeneratingSummary(true);
       try {
         const conversationToSummarize = messages.map(({ sender, content }) => ({ sender, content }));
-        const result = await summarizeConversation({ messages: conversationToSummarize });
+        // Mock attendance data for now. In a real app, this would be fetched.
+        const mockAttendance = { present: 18, absent: 1, tardy: 1 };
+        const result = await summarizeConversation({ 
+          messages: conversationToSummarize,
+          attendance: mockAttendance
+        });
         setSummary(result);
       } catch (error) {
         console.error('Failed to generate summary:', error);
@@ -125,6 +130,7 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
                 studentName={contact.childName}
                 summaryText={summary.summaryText}
                 actionItems={summary.actionItems}
+                attendance={summary.attendance}
               />
             )}
         </TabsContent>
