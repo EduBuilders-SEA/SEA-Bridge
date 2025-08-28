@@ -10,8 +10,9 @@ import { useToast } from "@/hooks/use-toast"
 import { contacts } from '@/lib/contacts';
 import { notFound, useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ProgressSummaryCard } from '@/components/chat/progress-summary-card';
+import { ProgressSummaryCard, ProgressSummaryCardSkeleton } from '@/components/chat/progress-summary-card';
 import { Card, CardContent } from '@/components/ui/card';
+import { summarizeConversation, type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
 
 
 export default function TeacherChatPage({ params: { contactId } }: { params: { contactId: string } }) {
@@ -19,6 +20,8 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [teacherName, setTeacherName] = useState('Teacher');
+  const [summary, setSummary] = useState<SummarizeConversationOutput | null>(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const router = useRouter();
   
   useEffect(() => {
@@ -63,6 +66,26 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
     addMessage(newMessage);
   };
 
+  const onTabChange = async (tab: string) => {
+    if (tab === 'summary' && !summary && !isGeneratingSummary) {
+      setIsGeneratingSummary(true);
+      try {
+        const conversationToSummarize = messages.map(({ sender, content }) => ({ sender, content }));
+        const result = await summarizeConversation({ messages: conversationToSummarize });
+        setSummary(result);
+      } catch (error) {
+        console.error('Failed to generate summary:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Could not generate the summary. Please try again.',
+        });
+      } finally {
+        setIsGeneratingSummary(false);
+      }
+    }
+  };
+
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
@@ -74,7 +97,7 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
 
   return (
     <ChatPageLayout title={layoutTitle} user={layoutUser}>
-      <Tabs defaultValue="chat" className="flex-1 flex flex-col overflow-hidden">
+      <Tabs defaultValue="chat" className="flex-1 flex flex-col overflow-hidden" onValueChange={onTabChange}>
         <div className="flex justify-center p-2 border-b">
           <TabsList>
             <TabsTrigger value="chat">Chat</TabsTrigger>
@@ -96,11 +119,16 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
                  {/* Placeholder for Date Range Picker */}
                 <Card className="p-2"><CardContent className="p-0">Date Range Picker Coming Soon</CardContent></Card>
             </div>
-            <ProgressSummaryCard studentName={contact.childName} />
+            {isGeneratingSummary && <ProgressSummaryCardSkeleton />}
+            {summary && (
+              <ProgressSummaryCard 
+                studentName={contact.childName}
+                summaryText={summary.summaryText}
+                actionItems={summary.actionItems}
+              />
+            )}
         </TabsContent>
       </Tabs>
     </ChatPageLayout>
   );
 }
-
-    

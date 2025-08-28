@@ -10,9 +10,10 @@ import { useToast } from "@/hooks/use-toast"
 import { notFound, useSearchParams, useRouter } from 'next/navigation';
 import { contacts } from '@/lib/contacts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ProgressSummaryCard } from '@/components/chat/progress-summary-card';
+import { ProgressSummaryCard, ProgressSummaryCardSkeleton } from '@/components/chat/progress-summary-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { summarizeConversation, type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
 
 
 type DisplayMessage = Message & {
@@ -52,6 +53,8 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
   const router = useRouter();
   const lang = searchParams.get('lang');
   const [parentName, setParentName] = useState('Parent');
+  const [summary, setSummary] = useState<SummarizeConversationOutput | null>(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('sea-bridge-user');
@@ -109,6 +112,26 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
     }, 1000);
   };
 
+  const onTabChange = async (tab: string) => {
+    if (tab === 'summary' && !summary && !isGeneratingSummary) {
+      setIsGeneratingSummary(true);
+      try {
+        const conversationToSummarize = messages.map(({ sender, content }) => ({ sender, content }));
+        const result = await summarizeConversation({ messages: conversationToSummarize });
+        setSummary(result);
+      } catch (error) {
+        console.error('Failed to generate summary:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Could not generate the summary. Please try again.',
+        });
+      } finally {
+        setIsGeneratingSummary(false);
+      }
+    }
+  };
+
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
@@ -122,7 +145,7 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
 
   return (
     <ChatPageLayout title={layoutTitle} user={layoutUser}>
-      <Tabs defaultValue="chat" className="flex-1 flex flex-col overflow-hidden">
+      <Tabs defaultValue="chat" className="flex-1 flex flex-col overflow-hidden" onValueChange={onTabChange}>
         <div className="flex justify-center p-2 border-b">
           <TabsList>
             <TabsTrigger value="chat">Chat</TabsTrigger>
@@ -149,7 +172,14 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
                  {/* Placeholder for Date Range Picker */}
                 <Card className="p-2"><CardContent className="p-0">Date Range Picker Coming Soon</CardContent></Card>
             </div>
-            <ProgressSummaryCard studentName={contact.childName} />
+            {isGeneratingSummary && <ProgressSummaryCardSkeleton />}
+            {summary && (
+              <ProgressSummaryCard 
+                studentName={contact.childName}
+                summaryText={summary.summaryText}
+                actionItems={summary.actionItems}
+              />
+            )}
         </TabsContent>
       </Tabs>
     </ChatPageLayout>
