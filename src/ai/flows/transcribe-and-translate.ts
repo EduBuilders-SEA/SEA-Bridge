@@ -14,7 +14,7 @@ const TranscribeAndTranslateInputSchema = z.object({
   audioDataUri: z
     .string()
     .describe(
-      "A voice note recording, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "A voice note recording, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
   targetLanguage: z.string().describe('The language to translate the transcription into (e.g., "Vietnamese", "English").'),
 });
@@ -41,8 +41,12 @@ const transcribeAndTranslateFlow = ai.defineFlow(
     outputSchema: TranscribeAndTranslateOutputSchema,
   },
   async ({ audioDataUri, targetLanguage }) => {
-    const { text: transcription } = await ai.transcribe({
-      media: { url: audioDataUri },
+    const { text: transcription } = await ai.generate({
+        model: 'googleai/gemini-2.0-flash',
+        prompt: [{ media: { url: audioDataUri } }],
+        config: {
+            responseModalities: ['TEXT'],
+        },
     });
 
     if (!transcription) {
