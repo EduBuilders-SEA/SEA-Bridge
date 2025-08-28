@@ -52,14 +52,28 @@ export default function MessageInput({ onSendMessage, onSendSms, placeholder }: 
           className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none min-h-[40px] h-10"
           rows={1}
         />
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0">
-          <Paperclip className="w-5 h-5" />
-          <span className="sr-only">Attach file</span>
-        </Button>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0">
-          <Mic className="w-5 h-5" />
-          <span className="sr-only">Record voice note</span>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0">
+              <Paperclip className="w-5 h-5" />
+              <span className="sr-only">Attach file</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Attach file (not implemented)</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0">
+              <Mic className="w-5 h-5" />
+              <span className="sr-only">Record voice note</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Record voice note (not implemented)</p>
+          </TooltipContent>
+        </Tooltip>
         {onSendSms && (
           <Tooltip>
             <TooltipTrigger asChild>

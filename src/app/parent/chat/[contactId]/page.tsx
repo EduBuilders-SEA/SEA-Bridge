@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -7,11 +8,6 @@ import ChatMessage from '@/components/chat/chat-message';
 import { conversation, type Message } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast"
 import { notFound, useSearchParams, useRouter } from 'next/navigation';
-
-// These are server functions, but we can call them from the client
-import { summarizeMessage } from '@/ai/flows/summarize-message';
-import { translateMessage } from '@/ai/flows/translate-message';
-import { sendSms } from '@/ai/flows/send-sms';
 import { contacts } from '@/lib/contacts';
 
 type DisplayMessage = Message & {
@@ -74,79 +70,22 @@ export default function ParentChatPage({ params }: { params: { contactId: string
     addMessage(newMessage);
   };
 
-  const handleSendSms = async (content: string) => {
-    if (!content.trim()) return;
-
-    try {
-      const result = await sendSms({
-        phoneNumber: contact.phoneNumber,
-        message: content,
-        senderRole: 'parent',
-      });
-      
-      const newMessage: DisplayMessage = {
-        id: String(messages.length + 1),
-        sender: 'parent',
-        content: `${content}\n(Sent via SMS)`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        type: 'text',
-        originalLanguage: parentLanguage,
-      };
-      addMessage(newMessage);
-      
-      toast({
-        title: "Message Sent via SMS",
-        description: result.status,
-      });
-
-    } catch (error) {
-      console.error("SMS failed", error);
-      toast({
-        variant: "destructive",
-        title: "SMS Failed",
-        description: "Could not send the SMS at this time.",
-      });
-    }
-  };
-
-
   const handleTranslate = async (messageId: string) => {
+    // Placeholder logic, real implementation removed
     setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isTranslating: true } : m));
-    const messageToTranslate = messages.find(m => m.id === messageId);
-    if (messageToTranslate) {
-      try {
-        const result = await translateMessage({ message: messageToTranslate.content, targetLanguage: parentLanguage });
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, translatedContent: result.translatedMessage, isTranslating: false } : m));
-      } catch (error) {
-        console.error("Translation failed", error);
-        toast({
-          variant: "destructive",
-          title: "Translation Failed",
-          description: "Could not translate the message at this time.",
-        })
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isTranslating: false } : m));
-      }
-    }
+    console.log(`Translating message ${messageId}`);
+    setTimeout(() => {
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isTranslating: false, translatedContent: `[Translated content for: ${m.content}]` } : m));
+    }, 1000);
   };
 
   const handleSummarize = async (messageId: string) => {
+    // Placeholder logic, real implementation removed
     setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: true } : m));
-    const messageToSummarize = messages.find(m => m.id === messageId);
-    if (messageToSummarize) {
-      try {
-        const contentToSummarize = messageToSummarize.translatedContent || messageToSummarize.content;
-        const result = await summarizeMessage({ message: contentToSummarize, language: parentLanguage });
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, summarizedContent: result.summary, isSummarizing: false } : m));
-      } catch (error) {
-        console.error("Summarization failed", error);
-        toast({
-          variant: "destructive",
-          title: "Summarization Failed",
-          description: "Could not summarize the message at this time.",
-        })
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: false } : m));
-      }
-    }
+     console.log(`Summarizing message ${messageId}`);
+    setTimeout(() => {
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: false, summarizedContent: `[Summary for: ${m.content}]` } : m));
+    }, 1000);
   };
 
   useEffect(() => {
@@ -174,7 +113,7 @@ export default function ParentChatPage({ params }: { params: { contactId: string
         ))}
       </div>
       <div className="p-4 md:p-6 pt-2 border-t bg-background">
-        <MessageInput onSendMessage={handleSendMessage} onSendSms={handleSendSms} placeholder={`Reply in ${parentLanguage}...`} />
+        <MessageInput onSendMessage={handleSendMessage} placeholder={`Reply in ${parentLanguage}...`} />
       </div>
     </ChatPageLayout>
   );
