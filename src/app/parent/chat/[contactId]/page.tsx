@@ -15,12 +15,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { summarizeConversation, type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
 import { translateMessage } from '@/ai/flows/translate-message';
+import { simplifyMessage } from '@/ai/flows/simplify-message';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
 
 
 type DisplayMessage = Message & {
   translatedContent?: string;
   isTranslating?: boolean;
+  simplifiedContent?: string;
+  isSimplifying?: boolean;
 };
 
 function ChatSkeleton() {
@@ -133,6 +136,31 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
     }
   };
 
+  const handleSimplify = async (messageId: string) => {
+    const message = messages.find(m => m.id === messageId);
+    if (!message || message.simplifiedContent) return;
+
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSimplifying: true } : m));
+    try {
+      const result = await simplifyMessage({ content: message.content });
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId
+            ? { ...m, simplifiedContent: result.simplifiedContent, isSimplifying: false }
+            : m
+        )
+      );
+    } catch (error) {
+       console.error('Failed to simplify message:', error);
+       toast({
+         variant: 'destructive',
+         title: 'Error',
+         description: 'Could not simplify the message. Please try again.',
+       });
+       setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSimplifying: false } : m));
+    }
+  };
+
   const onTabChange = async (tab: string) => {
     if (tab === 'summary' && !summary && !isGeneratingSummary) {
       setIsGeneratingSummary(true);
@@ -186,6 +214,7 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
                 message={msg}
                 currentUser="parent"
                 onTranslate={handleTranslate}
+                onSimplify={handleSimplify}
               />
             ))}
           </div>
