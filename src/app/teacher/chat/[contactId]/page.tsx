@@ -14,6 +14,7 @@ import { ProgressSummaryCard, ProgressSummaryCardSkeleton } from '@/components/c
 import { Card, CardContent } from '@/components/ui/card';
 import { summarizeConversation, type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
 import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
+import { chunkMessageForSms } from '@/ai/flows/chunk-message-for-sms';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
 
 type DisplayMessage = Message & {
@@ -76,6 +77,38 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
       originalLanguage: 'English',
     };
     addMessage(newMessage);
+  };
+
+  const handleSendSms = async (content: string) => {
+    if (!content.trim()) return;
+
+    try {
+      const result = await chunkMessageForSms({ content });
+      const smsContent = `(Simulated SMS sent to ${contact.name})\n---\n${result.chunks.join('\n---\n')}`;
+      
+      const newMessage: DisplayMessage = {
+        id: String(messages.length + 1),
+        sender: 'teacher',
+        content: smsContent,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: 'text',
+        originalLanguage: 'English',
+      };
+      addMessage(newMessage);
+
+      toast({
+        title: "SMS Sent (Simulated)",
+        description: `Message was split into ${result.chunks.length} chunks.`,
+      });
+
+    } catch (error) {
+      console.error('Failed to send SMS:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not generate SMS chunks. Please try again.',
+      });
+    }
   };
   
   const handleSendVoice = async (audioDataUri: string) => {
@@ -188,6 +221,7 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
           <div className="p-4 md:p-6 pt-2 border-t bg-background">
               <MessageInput 
                 onSendMessage={handleSendMessage} 
+                onSendSms={handleSendSms}
                 onSendVoice={handleSendVoice}
                 onSendFile={handleSendFile}
                />
