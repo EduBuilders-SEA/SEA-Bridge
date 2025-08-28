@@ -1,6 +1,6 @@
-# SEA Bridge - AWS Technical Architecture
+# SEA Bridge - Technical Architecture
 
-This document outlines the technical architecture for the SEA Bridge application, designed to run primarily on the Amazon Web Services (AWS) ecosystem.
+This document outlines the technical architecture for the SEA Bridge application, designed with a hybrid-cloud approach utilizing Vercel for the frontend and Amazon Web Services (AWS) for the backend.
 
 ```mermaid
 graph TD
@@ -9,20 +9,14 @@ graph TD
         User_Browser[("User's Browser<br>(Teacher/Parent)")]
     end
 
-    subgraph "AWS Cloud"
+    subgraph "Vercel Platform"
         direction TB
+        Vercel_Edge[("Vercel Edge Network<br>CDN & Caching")]
+        Vercel_Compute[("Vercel Serverless Functions<br>for Next.js Frontend")]
+    end
 
-        subgraph "Presentation & Routing Layer"
-            ALB[("Application Load Balancer")]
-            CloudFront[("Amazon CloudFront<br>CDN & Caching")]
-        end
-
-        subgraph "Application Layer (AWS Fargate)"
-            direction LR
-            Fargate_Service[("ECS Fargate Service")]
-            NextJS_Container[("Next.js App Container")]
-            Fargate_Service -- hosts --> NextJS_Container
-        end
+    subgraph "AWS Cloud (Backend)"
+        direction TB
 
         subgraph "API & Backend Logic (Serverless)"
             APIGW[("Amazon API Gateway<br>(REST & WebSocket)")]
@@ -52,13 +46,12 @@ graph TD
 
     %% --- Data Flows ---
 
-    %% User to App
-    User_Browser -- HTTPS Request --> CloudFront
-    CloudFront -- Forwards --> ALB
-    ALB -- Routes to --> Fargate_Service
+    %% User to Frontend (Vercel)
+    User_Browser -- HTTPS Request --> Vercel_Edge
+    Vercel_Edge -- Serves Static Content & Forwards to --> Vercel_Compute
 
-    %% App to Backend API
-    NextJS_Container -- API Calls --> APIGW
+    %% Frontend to Backend (AWS)
+    Vercel_Compute -- API Calls --> APIGW
 
     %% API Gateway to Lambdas
     APIGW -- Triggers --> Lambda_Translate
@@ -82,36 +75,32 @@ graph TD
 
     %% Authentication
     User_Browser -- Auth Flow --> Cognito
-    NextJS_Container -- Validates Token with --> Cognito
+    Vercel_Compute -- Validates Token with --> Cognito
 ```
 
 ### Architecture Components Breakdown:
 
 1.  **User Layer:**
-    *   **User's Browser**: The client-side application running on the user's device. This is the Next.js frontend built with React.
+    *   **User's Browser**: The client-side application running on the user's device.
 
-2.  **CDN & Load Balancing:**
-    *   **Amazon CloudFront**: Acts as the Content Delivery Network (CDN). It caches static assets (JS, CSS, images) at edge locations closer to the user, reducing latency. It routes dynamic requests to the Application Load Balancer.
-    *   **Application Load Balancer (ALB)**: Distributes incoming application traffic across multiple targets, such as the ECS Fargate containers, ensuring high availability and scalability.
+2.  **Frontend Platform (Vercel):**
+    *   **Vercel Edge Network**: Acts as the Content Delivery Network (CDN). It caches static assets (JS, CSS, images) at edge locations closer to the user, reducing latency.
+    *   **Vercel Serverless Functions**: Vercel automatically deploys the Next.js frontend application onto its serverless compute infrastructure. This handles server-side rendering and serves the application to the user.
 
-3.  **Application Layer:**
-    *   **AWS Fargate**: A serverless compute engine for containers. It runs the Next.js application inside a Docker container without requiring the management of servers or clusters. This is where the main application logic and UI rendering happens.
+3.  **API & Backend (AWS):**
+    *   **Amazon API Gateway**: Manages all API calls from the Vercel frontend. It provides both a REST API for standard requests (like initiating a translation) and a WebSocket API to enable real-time, two-way communication for the chat feature.
+    *   **AWS Lambda**: Hosts the backend logic for individual AI tasks (translation, summarization, etc.) as separate, stateless functions, written in Node.js using the AWS SDK.
 
-4.  **API & Backend (Serverless):**
-    *   **Amazon API Gateway**: Manages all API calls. It provides both a REST API for standard requests (like initiating a translation) and a WebSocket API to enable real-time, two-way communication for the chat feature.
-    *   **AWS Lambda**: Hosts the backend logic for individual AI tasks (translation, summarization, etc.) as separate, stateless functions. This approach is highly scalable and cost-effective, as you only pay for compute time when the functions are executed.
-
-5.  **AI & ML Services:**
+4.  **AI & ML Services (AWS):**
     *   **Amazon Bedrock**: A fully managed service that offers a choice of high-performing foundation models. It will be used to host and serve the custom **SEA-Lion Model**.
         *   **Custom Model (SEA-Lion)**: An imported model specializing in Southeast Asian languages, used for all translation and summarization tasks to ensure high accuracy and contextual understanding.
     *   **Amazon Transcribe**: Converts speech from voice notes into text.
 
-6.  **Data & Storage:**
+5.  **Data & Storage (AWS):**
     *   **Amazon S3 (Simple Storage Service)**: Used for object storage. All user-uploaded content like voice notes and documents will be stored here.
-    *   **Amazon DynamoDB**: A fully managed NoSQL database for storing structured data like user profiles, contacts, and chat message history. It's chosen for its single-digit millisecond performance, which is ideal for a chat application.
+    *   **Amazon DynamoDB**: A fully managed NoSQL database for storing structured data like user profiles, contacts, and chat message history.
 
-7.  **Messaging & Identity:**
+6.  **Messaging & Identity (AWS):**
     *   **Amazon SNS (Simple Notification Service)**: Handles the sending of transactional SMS messages for the low-connectivity fallback feature.
     *   **Amazon Cognito**: Provides a complete solution for user identity management, including user registration, sign-in, and access control. This replaces the current `localStorage`-based session management.
-
-This architecture is robust, scalable, and leverages managed AWS services to reduce operational overhead. Let me know if you would like me to elaborate on any of these components or flows!
+```
