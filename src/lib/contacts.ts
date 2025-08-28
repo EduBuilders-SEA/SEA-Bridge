@@ -6,6 +6,7 @@ export type Contact = {
   phoneNumber: string;
   childName?: string;
   subject?: string;
+  language?: string;
 };
 
 export const contacts: Contact[] = [
@@ -24,6 +25,7 @@ export const contacts: Contact[] = [
     avatarUrl: 'https://placehold.co/100x100.png',
     phoneNumber: '+15555555556',
     childName: 'Wei Chen',
+    language: 'Mandarin Chinese',
   },
   {
     id: '3',
@@ -40,6 +42,7 @@ export const contacts: Contact[] = [
     avatarUrl: 'https://placehold.co/100x100.png',
     phoneNumber: '+15555555558',
     childName: 'Emily Smith',
+    language: 'English',
   },
    {
     id: '5',
@@ -56,5 +59,6 @@ export const contacts: Contact[] = [
     avatarUrl: 'https://placehold.co/100x100.png',
     phoneNumber: '+15555555560',
     childName: 'Aarav Patel',
+    language: 'Tamil',
   },
 ];

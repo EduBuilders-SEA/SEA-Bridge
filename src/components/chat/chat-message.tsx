@@ -39,7 +39,7 @@ const AiActionButton = ({ isLoading, onClick, children }: { isLoading?: boolean;
     </Button>
 );
 
-const MessageContent = ({ message }: { message: Message }) => {
+const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, isSentByCurrentUser: boolean }) => {
     if (message.type === 'document') {
         return (
             <div className="flex items-center gap-2 p-3 bg-secondary rounded-md">
@@ -51,19 +51,37 @@ const MessageContent = ({ message }: { message: Message }) => {
     if (message.type === 'voice') {
         return (
              <div>
-                <div className="flex items-center gap-3 p-2 bg-secondary rounded-full w-fit">
-                    <div className="bg-primary text-primary-foreground rounded-full p-2">
+                <div className={cn(
+                  "flex items-center gap-3 p-2 rounded-full w-fit",
+                  isSentByCurrentUser ? 'bg-primary-foreground/20' : 'bg-secondary'
+                )}>
+                    <div className={cn(
+                        "rounded-full p-2",
+                        isSentByCurrentUser ? 'bg-primary-foreground text-primary' : 'bg-primary text-primary-foreground'
+                    )}>
                         <Music4 className="w-4 h-4" />
                     </div>
-                    <div className="w-40 h-1 bg-muted-foreground/30 rounded-full relative">
-                        <div className="absolute top-0 left-0 h-1 w-2/3 bg-primary rounded-full"></div>
-                        <div className="absolute top-1/2 -right-1 h-3 w-3 bg-primary rounded-full -translate-y-1/2"></div>
+                    <div className={cn(
+                        "w-40 h-1 rounded-full relative",
+                        isSentByCurrentUser ? 'bg-primary-foreground/30' : 'bg-muted-foreground/30'
+                    )}>
+                        <div className={cn(
+                          "absolute top-0 left-0 h-1 w-2/3 rounded-full",
+                          isSentByCurrentUser ? 'bg-primary-foreground' : 'bg-primary'
+                        )}></div>
+                        <div className={cn(
+                          "absolute top-1/2 -right-1 h-3 w-3 rounded-full -translate-y-1/2",
+                          isSentByCurrentUser ? 'bg-primary-foreground' : 'bg-primary'
+                        )}></div>
                     </div>
-                    <span className="text-xs font-mono text-muted-foreground">0:12</span>
+                    <span className={cn(
+                        "text-xs font-mono",
+                        isSentByCurrentUser ? 'text-primary-foreground' : 'text-muted-foreground'
+                    )}>0:12</span>
                 </div>
                 {message.isTranscribing && (
                     <div className="mt-3 pt-3 border-t border-border/50">
-                         <div className="flex items-center gap-2 text-primary/90">
+                         <div className={cn("flex items-center gap-2", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90' )}>
                            <Loader2 className="w-4 h-4 animate-spin" />
                            <span className="text-sm">Processing audio...</span>
                         </div>
@@ -71,20 +89,20 @@ const MessageContent = ({ message }: { message: Message }) => {
                 )}
                 {message.transcription && (
                      <div className="mt-3 pt-3 border-t border-border/50">
-                        <p className="text-xs font-bold text-primary mb-1 font-headline flex items-center gap-1.5"><Quote className="w-4 h-4" /> Transcription</p>
-                        <p className="font-body text-sm text-primary/90 italic">"{message.transcription}"</p>
+                        <p className={cn("text-xs font-bold mb-1 font-headline flex items-center gap-1.5", isSentByCurrentUser ? 'text-primary-foreground' : 'text-primary' )}><Quote className="w-4 h-4" /> Transcription</p>
+                        <p className={cn("font-body text-sm italic", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90')}>"{message.transcription}"</p>
                     </div>
                 )}
                  {(message.translatedContent) && (
                     <div className="mt-3 pt-3 border-t border-border/50">
-                        <p className="text-xs font-bold text-primary mb-1 font-headline">Translation</p>
+                        <p className={cn("text-xs font-bold mb-1 font-headline", isSentByCurrentUser ? 'text-primary-foreground' : 'text-primary' )}>Translation</p>
                         {message.isTranslating && !message.translatedContent && (
-                            <div className="flex items-center gap-2 text-primary/90">
+                            <div className={cn("flex items-center gap-2", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90' )}>
                             <Loader2 className="w-4 h-4 animate-spin" />
                             <span className="text-sm">Translating...</span>
                             </div>
                         )}
-                        {message.translatedContent && <p className="font-body text-sm text-primary/90">{message.translatedContent}</p>}
+                        {message.translatedContent && <p className={cn("font-body text-sm", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90')}>{message.translatedContent}</p>}
                     </div>
                 )}
              </div>
@@ -95,20 +113,20 @@ const MessageContent = ({ message }: { message: Message }) => {
             <p className="font-body text-sm whitespace-pre-wrap">{message.content}</p>
             {(message.isTranslating || message.translatedContent) && (
                 <div className="mt-3 pt-3 border-t border-border/50">
-                    <p className="text-xs font-bold text-primary mb-1 font-headline">Translation</p>
+                    <p className={cn("text-xs font-bold mb-1 font-headline", isSentByCurrentUser ? 'text-primary-foreground' : 'text-primary')}>Translation</p>
                     {message.isTranslating && !message.translatedContent && (
-                        <div className="flex items-center gap-2 text-primary/90">
+                        <div className={cn("flex items-center gap-2", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90' )}>
                            <Loader2 className="w-4 h-4 animate-spin" />
                            <span className="text-sm">Translating...</span>
                         </div>
                     )}
-                    {message.translatedContent && <p className="font-body text-sm text-primary/90">{message.translatedContent}</p>}
+                    {message.translatedContent && <p className={cn("font-body text-sm", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90')}>{message.translatedContent}</p>}
                 </div>
             )}
              {message.simplifiedContent && (
                 <div className="mt-3 pt-3 border-t border-border/50">
-                    <p className="text-xs font-bold text-primary mb-1 font-headline">Simplified Version</p>
-                    <p className="font-body text-sm text-primary/90">{message.simplifiedContent}</p>
+                    <p className={cn("text-xs font-bold mb-1 font-headline", isSentByCurrentUser ? 'text-primary-foreground' : 'text-primary')}>Simplified Version</p>
+                    <p className={cn("font-body text-sm", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90')}>{message.simplifiedContent}</p>
                 </div>
             )}
         </>
@@ -128,7 +146,7 @@ export default function ChatMessage({ message, currentUser, onTranslate, onSimpl
           isSentByCurrentUser ? 'bg-primary text-primary-foreground' : 'bg-card'
         )}>
           <CardContent className="p-3">
-            <MessageContent message={message} />
+            <MessageContent message={message} isSentByCurrentUser={isSentByCurrentUser} />
           </CardContent>
           {!isSentByCurrentUser && (
             <CardFooter className="p-2 pt-0 flex justify-between items-center">

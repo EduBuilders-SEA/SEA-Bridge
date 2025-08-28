@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import ChatPageLayout from '@/components/chat/chat-page-layout';
 import MessageInput from '@/components/chat/message-input';
 import ChatMessage from '@/components/chat/chat-message';
-import { conversation, type Message } from '@/lib/data';
+import { conversation, type Message, mockVoiceNote } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast"
 import { contacts } from '@/lib/contacts';
 import { notFound, useRouter } from 'next/navigation';
@@ -13,11 +13,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProgressSummaryCard, ProgressSummaryCardSkeleton } from '@/components/chat/progress-summary-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { summarizeConversation, type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
+import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
 
+type DisplayMessage = Message & {
+  translatedContent?: string;
+  isTranslating?: boolean;
+  simplifiedContent?: string;
+  isSimplifying?: boolean;
+  transcription?: string;
+  isTranscribing?: boolean;
+};
 
 export default function TeacherChatPage({ params: { contactId } }: { params: { contactId: string } }) {
-  const [messages, setMessages] = useState<Message[]>(conversation);
+  const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [teacherName, setTeacherName] = useState('Teacher');
@@ -51,12 +60,12 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
     role: 'Teacher',
   };
 
-  const addMessage = (message: Message) => {
+  const addMessage = (message: DisplayMessage) => {
     setMessages(prev => [...prev, message]);
   }
 
   const handleSendMessage = (content: string) => {
-    const newMessage: Message = {
+    const newMessage: DisplayMessage = {
       id: String(messages.length + 1),
       sender: 'teacher',
       content,
@@ -66,6 +75,49 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
     };
     addMessage(newMessage);
   };
+  
+  const handleSendVoice = async () => {
+    const newId = String(messages.length + 1);
+    const newMessage: DisplayMessage = {
+      id: newId,
+      sender: 'teacher',
+      content: "Voice note", // Placeholder content
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: 'voice',
+      originalLanguage: 'English',
+      isTranscribing: true,
+    };
+    addMessage(newMessage);
+
+    try {
+      // Teachers send voice notes in English and translate to the parent's language
+      const result = await transcribeAndTranslate({ 
+        audioDataUri: mockVoiceNote, 
+        targetLanguage: contact.language || 'English' 
+      });
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === newId
+            ? { ...m, 
+                isTranscribing: false, 
+                content: result.transcription, // Use transcription as main content
+                transcription: result.transcription,
+                translatedContent: result.translation 
+              }
+            : m
+        )
+      );
+    } catch (error) {
+      console.error('Failed to transcribe voice note:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not process the voice note. Please try again.',
+      });
+      setMessages(prev => prev.map(m => m.id === newId ? { ...m, isTranscribing: false, content: "Error processing voice note" } : m));
+    }
+  }
+
 
   const onTabChange = async (tab: string) => {
     if (tab === 'summary' && !summary && !isGeneratingSummary) {
@@ -117,7 +169,7 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
               ))}
           </div>
           <div className="p-4 md:p-6 pt-2 border-t bg-background">
-              <MessageInput onSendMessage={handleSendMessage} />
+              <MessageInput onSendMessage={handleSendMessage} onSendVoice={handleSendVoice} />
           </div>
         </TabsContent>
         <TabsContent value="summary" className="flex-1 overflow-y-auto p-4 md:p-6">
