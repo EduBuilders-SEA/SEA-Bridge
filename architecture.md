@@ -1,8 +1,6 @@
-# LinguaLearn Bridge - AWS-Centric Architecture
+# LinguaLearn Bridge - Final Hackathon Architecture
 
-This document outlines a pragmatic technical architecture for the LinguaLearn Bridge application, designed for rapid development within a 3-week hackathon timeline while leveraging the AWS ecosystem.
-
-**Core Philosophy:** Utilize Vercel for what it excels at (frontend hosting) and Next.js Route Handlers for a fast, unified development experience. All stateful services (auth, database, storage, AI) will be handled by AWS to meet sponsor requirements.
+This architecture is designed for a team new to Next.js, prioritizing a clear separation between frontend and backend concerns to maximize development speed and reduce the learning curve. It leverages the strengths of Vercel for the frontend, AWS for scalable AI and serverless logic, and Supabase for its rapid "backend-as-a-service" features.
 
 ```mermaid
 graph TD
@@ -10,97 +8,73 @@ graph TD
         A[User's Browser]
     end
 
-    subgraph Vercel
-        B[Next.js Frontend @ Vercel]
-        C[Next.js API Route Handlers]
+    subgraph Frontend @ Vercel
+        B[Next.js React App]
         B -- Renders & Serves --> A
+    end
+
+    subgraph Backend @ AWS
+        C[Amazon API Gateway]
+        D[AWS Lambda Functions (Node.js)]
+        E[Amazon Bedrock]
+        F[SEA-Lion Custom Model]
+
         A -- API Calls --> C
+        C -- Triggers --> D
+        D -- Invokes AI Model via --> E
+        E -- Uses --> F
     end
 
-    subgraph AWS Cloud
-        subgraph Authentication
-            D[Amazon Cognito]
-        end
-
-        subgraph Real-time Messaging
-            E[AWS IoT Core - WebSocket]
-        end
-
-        subgraph Database
-            F[Amazon RDS - PostgreSQL]
-            G[Drizzle ORM]
-        end
-
-        subgraph AI/ML
-            H[Amazon Bedrock]
-            I[SEA-Lion Custom Model]
-        end
-
-        subgraph Storage
-            J[Amazon S3]
-        end
-
-        C -- Authenticates via --> D
-        C -- Publishes Messages to --> E
-        A -- Subscribes for Live Chat via --> E
-        C -- Queries/Mutates DB via --> G
-        G -- Connects to --> F
-        C -- Invokes AI Model via --> H
-        H -- Uses --> I
-        C -- Generates Signed URLs & Uploads to --> J
-        A -- Downloads Files from --> J
+    subgraph Data & Services @ Supabase
+        G[Supabase Auth]
+        H[Supabase Postgres DB]
+        I[Supabase Realtime]
+        J[Supabase Storage]
     end
+
+    %% Connections
+    A -- Authenticates via --> G
+    A -- Subscribes for Live Chat --> I
+    A -- Uploads/Downloads Files --> J
+    D -- Queries/Mutates DB --> H
+    D -- Publishes Messages to --> I
+
 
     %% Flow Descriptions
     classDef user fill:#E3F2FD,stroke:#64B5F6,stroke-width:2px;
     classDef vercel fill:#f0f0f0,stroke:#000,stroke-width:2px;
-    classDef aws fill:#fff5e6,stroke:#FF9900,stroke-width:2px;
+    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px;
+    classDef supabase fill:#E8F5E9,stroke:#3ECF8E,stroke-width:2px;
 
     class A user;
-    class B,C vercel;
-    class D,E,F,G,H,I,J aws;
-
+    class B vercel;
+    class C,D,E,F aws;
+    class G,H,I,J supabase;
 ```
 
 ### Component Breakdown:
 
 1.  **Frontend (Vercel):**
-    *   **Framework:** Next.js with React Server Components.
-    *   **Hosting:** Deployed on Vercel for optimal performance, DX, and CDN.
-    *   **UI:** Built with shadcn/ui and Tailwind CSS.
-    *   **Forms:** React Hook Form (`RHF`) for managing form state and `Zod` for validation.
-    *   **Responsibilities:** Renders all UI, handles user interactions, and makes API calls to its own backend.
+    *   **Framework:** Next.js, used primarily for its powerful React-based UI rendering.
+    *   **Responsibilities:** Renders all UI components, manages client-side state, handles user interactions, and makes authenticated API calls to the AWS backend.
 
-2.  **Backend API (Next.js Route Handlers on Vercel):**
-    *   **Location:** Lives in the `/app/api/...` directory of the Next.js project.
-    *   **Responsibilities:**
-        *   Handles all business logic.
-        *   Communicates with AWS services using the AWS SDK for JavaScript v3.
-        *   Acts as the secure intermediary between the client and the AWS backend. It's a "backend-for-frontend" (BFF) hosted on Vercel.
+2.  **Backend API (AWS Lambda + API Gateway):**
+    *   **API Gateway:** Provides simple, scalable HTTPS endpoints for the frontend to call (e.g., `/translate`, `/sendMessage`).
+    *   **Lambda Functions:** Contain the backend logic. Each function is a small, independent Node.js script. For example, a `sendMessage` function would receive data from the API Gateway, process it, and save it to the Supabase database.
+    *   **Advantage:** This decouples the backend entirely, making it easier for new developers to work on without interfering with the Next.js frontend.
 
-3.  **Authentication (AWS):**
-    *   **Service:** **Amazon Cognito.**
-    *   **Usage:** Manages user pools, sign-up, sign-in, and JWT (JSON Web Token) issuance. The frontend will use a library like `amazon-cognito-identity-js` or AWS Amplify's auth components. Route Handlers will validate the JWTs on every protected API call.
+3.  **Authentication (Supabase Auth):**
+    *   The Next.js client will use the Supabase JS library to handle user sign-up and sign-in.
+    *   When making an API call to AWS, the client will include the Supabase JWT in the `Authorization` header. The Lambda function can validate this token to secure the endpoint.
 
-4.  **Database (AWS):**
-    *   **Service:** **Amazon RDS for PostgreSQL.**
-    *   **ORM:** **Drizzle ORM.** The Next.js backend will use Drizzle to make type-safe SQL queries to the RDS instance. This provides a better developer experience than writing raw SQL.
-    *   **Schema:** Will store user profiles, chat messages, contacts, and AI-generated summaries.
+4.  **Database & Real-time (Supabase):**
+    *   **Postgres DB:** Your AWS Lambda functions will use a Postgres client library to connect to the Supabase database to store user data, messages, etc.
+    *   **Realtime:** The frontend client will subscribe directly to Supabase Realtime to listen for database changes (e.g., new messages) and update the UI live.
 
-5.  **Real-time Chat (AWS):**
-    *   **Service:** **AWS IoT Core.**
-    *   **Protocol:** MQTT over WebSockets.
-    *   **Flow:**
-        *   When a user sends a message, the Route Handler publishes it to a specific MQTT topic (e.g., `/chat/conversation_123`).
-        *   Clients (browsers) subscribe to their relevant conversation topics.
-        *   Messages are pushed instantly to all subscribed clients, creating a live chat experience.
+5.  **AI/ML (Amazon Bedrock):**
+    *   Your AWS Lambda functions will use the AWS SDK to invoke your custom **SEA-Lion model** hosted in Bedrock for all translation and summarization tasks. This satisfies the core requirement of using the sponsor's AI service.
 
-6.  **AI/ML (AWS):**
-    *   **Service:** **Amazon Bedrock.**
-    *   **Model:** The **SEA-Lion model** will be imported into Bedrock as a provisioned throughput model.
-    *   **Usage:** The Next.js Route Handlers will call the Bedrock API to perform translation, summarization, and other generative AI tasks.
+6.  **Storage (Supabase Storage):**
+    *   The frontend client will communicate with Supabase directly to get secure URLs for uploading and downloading files. This is simpler than routing through the AWS backend.
 
-7.  **File Storage (AWS):**
-    *   **Service:** **Amazon S3.**
-    *   **Usage:** Used to store user-uploaded files like voice notes (.mp3, .wav) and documents (.pdf).
-    *   **Flow:** The Route Handler will generate a secure, pre-signed URL for uploading. The client then uses this URL to upload the file directly to the S3 bucket, which is more performant and secure than piping the file through the backend server.
+This is our stable plan. It's the best balance of power, scalability, and, most importantly, team productivity for your hackathon.
