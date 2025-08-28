@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Languages, FileText, Music4, Loader2, Quote, Volume2 } from 'lucide-react';
+import { Sparkles, Languages, FileText, Music4, Loader2, Quote, Volume2, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -43,12 +43,16 @@ const AiActionButton = ({ isLoading, onClick, children }: { isLoading?: boolean;
 );
 
 const formatTime = (time: number) => {
+    if (isNaN(time) || !isFinite(time)) {
+        return "0:00";
+    }
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-const VoiceNotePlayer = ({ audioDataUri }: { audioDataUri: string }) => {
+
+const VoiceNotePlayer = ({ audioDataUri, isSentByCurrentUser }: { audioDataUri: string, isSentByCurrentUser: boolean }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [duration, setDuration] = useState(0);
@@ -101,14 +105,16 @@ const VoiceNotePlayer = ({ audioDataUri }: { audioDataUri: string }) => {
         }
     };
 
+    const timeClass = isSentByCurrentUser ? 'text-primary-foreground/80' : 'text-muted-foreground';
+
     return (
-        <div className="flex items-center gap-3 p-3 bg-secondary rounded-md">
+        <div className="flex items-center gap-3 p-3 bg-card/80 rounded-md">
             <audio ref={audioRef} src={audioDataUri} preload="metadata" onEnded={() => setIsPlaying(false)} />
             <Button variant="ghost" size="icon" onClick={togglePlayPause} className="w-8 h-8 rounded-full">
-                {isPlaying ? <Music4 className="w-4 h-4" /> : <Music4 className="w-4 h-4" />}
+                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
             </Button>
             <div className="flex-1 flex items-center gap-2">
-                <span className="text-xs font-mono">{formatTime(currentTime)}</span>
+                <span className={cn("text-xs font-mono", timeClass)}>{formatTime(currentTime)}</span>
                 <Slider
                     min={0}
                     max={duration}
@@ -117,7 +123,7 @@ const VoiceNotePlayer = ({ audioDataUri }: { audioDataUri: string }) => {
                     onValueChange={handleSliderChange}
                     className="flex-1"
                 />
-                 <span className="text-xs font-mono">{formatTime(duration)}</span>
+                 <span className={cn("text-xs font-mono", timeClass)}>{formatTime(duration)}</span>
             </div>
             <div className="flex items-center gap-2 w-24">
                 <Volume2 className="w-4 h-4" />
@@ -146,7 +152,7 @@ const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, is
     if (message.type === 'voice' && message.audioDataUri) {
         return (
              <div>
-                <VoiceNotePlayer audioDataUri={message.audioDataUri} />
+                <VoiceNotePlayer audioDataUri={message.audioDataUri} isSentByCurrentUser={isSentByCurrentUser} />
                 {message.isTranscribing && (
                     <div className="mt-3 pt-3 border-t border-border/50">
                          <div className={cn("flex items-center gap-2", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90' )}>
