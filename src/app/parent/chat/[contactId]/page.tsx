@@ -84,7 +84,12 @@ export default function ParentChatPage({ params: { contactId } }: { params: { co
     setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: true } : m));
      console.log(`Summarizing message ${messageId}`);
     setTimeout(() => {
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: false, summarizedContent: `[Summary for: ${m.content}]` } : m));
+        const summaryPoints = [
+            "Your son, Wei, is doing well in class.",
+            "A permission slip for a field trip will be sent home.",
+            "The permission slip needs to be returned by Friday."
+        ].map(point => `• ${point}`).join('\n');
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: false, summarizedContent: summaryPoints } : m));
     }, 1000);
   };
 
