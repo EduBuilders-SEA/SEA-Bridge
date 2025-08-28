@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -14,23 +15,37 @@ import {
 import Logo from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { createClient } from '@/lib/supabase/client';
 
 export default function Home() {
     const [userRole, setUserRole] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    const supabase = createClient();
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('sea-bridge-user');
-        if (storedUser) {
-            setUserRole(JSON.parse(storedUser).role);
-        }
-        setLoading(false);
-    }, []);
+        const checkUser = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', session.user.id)
+                    .single();
 
-    const handleLogout = () => {
-        localStorage.removeItem('sea-bridge-user');
+                if (profile) {
+                    setUserRole(profile.role);
+                }
+            }
+            setLoading(false);
+        };
+        checkUser();
+    }, [supabase, router]);
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
         setUserRole(null);
+        router.refresh();
     };
 
     if (loading) {

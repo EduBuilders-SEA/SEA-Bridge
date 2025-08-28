@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -17,6 +18,7 @@ import { chunkMessageForSms } from '@/ai/flows/chunk-message-for-sms';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
 import { AttendanceForm } from '@/components/chat/attendance-form';
 import type { Attendance } from '@/lib/schemas';
+import { createClient } from '@/lib/supabase/client';
 
 type DisplayMessage = Message & {
   translatedContent?: string;
@@ -38,20 +40,20 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [attendance, setAttendance] = useState<Attendance>({ present: 18, absent: 1, tardy: 1 });
   const router = useRouter();
+  const supabase = createClient();
   
   useEffect(() => {
-    const storedUser = localStorage.getItem('sea-bridge-user');
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      if (user.role !== 'teacher') {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         router.push('/onboarding?role=teacher');
       } else {
-        setTeacherName(user.name);
+        // In a real app, you might fetch the profile to get the name
+        setTeacherName('Teacher');
       }
-    } else {
-      router.push('/onboarding?role=teacher');
-    }
-  }, [router]);
+    };
+    checkUser();
+  }, [router, supabase]);
 
   const contact = contacts.find(c => c.id === contactId && c.role === 'parent');
   

@@ -19,6 +19,7 @@ import { simplifyMessage } from '@/ai/flows/simplify-message';
 import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
 import { summarizeDocument } from '@/ai/flows/summarize-document';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
+import { createClient } from '@/lib/supabase/client';
 
 
 type DisplayMessage = Message & {
@@ -72,22 +73,22 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
   const [parentLanguage, setParentLanguage] = useState(lang || 'English');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast()
+  const supabase = createClient();
 
   const contact = contacts.find(c => c.id === contactId && c.role === 'teacher');
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('sea-bridge-user');
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      if (user.role !== 'parent') {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         router.push('/onboarding?role=parent');
       } else {
-        setParentName(user.name);
+        // In a real app, you might fetch the profile to get the name
+        setParentName('Parent'); 
       }
-    } else {
-      router.push('/onboarding?role=parent');
-    }
-  }, [router]);
+    };
+    checkUser();
+  }, [router, supabase]);
 
   useEffect(() => {
     const autoTranslateMessages = async () => {

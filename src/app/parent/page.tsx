@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -21,6 +22,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { languages } from '@/lib/languages';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 export default function ParentContactsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,20 +30,20 @@ export default function ParentContactsPage() {
   const [language, setLanguage] = useState('English');
   const [userName, setUserName] = useState('Parent');
   const router = useRouter();
+  const supabase = createClient();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('sea-bridge-user');
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      if (user.role !== 'parent') {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         router.push('/onboarding?role=parent');
       } else {
-        setUserName(user.name);
+        // In a real app, you might fetch the profile to get the name
+        setUserName('Parent'); 
       }
-    } else {
-      router.push('/onboarding?role=parent');
-    }
-  }, [router]);
+    };
+    checkUser();
+  }, [router, supabase]);
 
   const teacherContacts = allContacts.filter(c => c.role === 'teacher');
 
