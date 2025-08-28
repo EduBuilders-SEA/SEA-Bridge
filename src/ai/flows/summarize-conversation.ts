@@ -9,19 +9,12 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { AttendanceSchema } from '@/lib/schemas';
 
 const MessageSchema = z.object({
   sender: z.enum(['teacher', 'parent']),
   content: z.string(),
 });
-
-export const AttendanceSchema = z.object({
-    present: z.number().describe('Number of days the student was present.'),
-    absent: z.number().describe('Number of days the student was absent.'),
-    tardy: z.number().describe('Number of days the student was tardy.'),
-});
-export type AttendanceSchema = z.infer<typeof AttendanceSchema>;
-
 
 const SummarizeConversationInputSchema = z.object({
   messages: z.array(MessageSchema).describe('The history of the conversation.'),

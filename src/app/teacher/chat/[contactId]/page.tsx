@@ -11,11 +11,12 @@ import { contacts } from '@/lib/contacts';
 import { notFound, useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProgressSummaryCard, ProgressSummaryCardSkeleton } from '@/components/chat/progress-summary-card';
-import { summarizeConversation, type SummarizeConversationOutput, type AttendanceSchema } from '@/ai/flows/summarize-conversation';
+import { summarizeConversation, type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
 import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
 import { chunkMessageForSms } from '@/ai/flows/chunk-message-for-sms';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
 import { AttendanceForm } from '@/components/chat/attendance-form';
+import type { Attendance } from '@/lib/schemas';
 
 type DisplayMessage = Message & {
   translatedContent?: string;
@@ -35,7 +36,7 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
   const [teacherName, setTeacherName] = useState('Teacher');
   const [summary, setSummary] = useState<SummarizeConversationOutput | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [attendance, setAttendance] = useState<AttendanceSchema>({ present: 18, absent: 1, tardy: 1 });
+  const [attendance, setAttendance] = useState<Attendance>({ present: 18, absent: 1, tardy: 1 });
   const router = useRouter();
   
   useEffect(() => {
@@ -169,7 +170,7 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
     addMessage(newMessage);
   };
 
-  const generateSummary = async (currentAttendance: AttendanceSchema) => {
+  const generateSummary = async (currentAttendance: Attendance) => {
     setIsGeneratingSummary(true);
     setSummary(null);
     try {
@@ -191,7 +192,7 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
     }
   }
 
-  const handleUpdateAttendance = (newAttendance: AttendanceSchema) => {
+  const handleUpdateAttendance = (newAttendance: Attendance) => {
     setAttendance(newAttendance);
     generateSummary(newAttendance);
   }

@@ -15,18 +15,14 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { type AttendanceSchema } from "@/ai/flows/summarize-conversation"
+import { type Attendance, AttendanceSchema } from "@/lib/schemas"
 import { RefreshCcw } from "lucide-react"
 
-const attendanceFormSchema = z.object({
-  present: z.coerce.number().min(0, "Cannot be negative"),
-  absent: z.coerce.number().min(0, "Cannot be negative"),
-  tardy: z.coerce.number().min(0, "Cannot be negative"),
-});
+const attendanceFormSchema = AttendanceSchema;
 
 type AttendanceFormProps = {
-  initialData: AttendanceSchema;
-  onUpdateAttendance: (data: AttendanceSchema) => void;
+  initialData: Attendance;
+  onUpdateAttendance: (data: Attendance) => void;
 }
 
 export function AttendanceForm({ initialData, onUpdateAttendance }: AttendanceFormProps) {

@@ -3,17 +3,12 @@
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { CheckCircle, AlertCircle, XCircle, CalendarDays, ClipboardList } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Attendance } from "@/lib/schemas";
 
 type SummaryItem = {
   id?: string; // id is optional as it can be generated from index
   text: string;
   type: 'action_item' | 'deadline' | 'fee';
-};
-
-type Attendance = {
-  present: number;
-  absent: number;
-  tardy: number;
 };
 
 type ProgressSummaryCardProps = {
