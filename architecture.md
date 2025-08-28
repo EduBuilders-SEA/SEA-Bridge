@@ -10,7 +10,7 @@ graph TD
         A[User's Browser]
     end
 
-    subgraph Firebase App Hosting / Vercel
+    subgraph Vercel
         B[Next.js Frontend]
         C[Genkit AI Flows (as Server Actions)]
         B -- Renders & Serves --> A
