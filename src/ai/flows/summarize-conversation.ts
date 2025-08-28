@@ -15,7 +15,7 @@ const MessageSchema = z.object({
   content: z.string(),
 });
 
-export const SummarizeConversationInputSchema = z.object({
+const SummarizeConversationInputSchema = z.object({
   messages: z.array(MessageSchema).describe('The history of the conversation.'),
 });
 export type SummarizeConversationInput = z.infer<typeof SummarizeConversationInputSchema>;
@@ -25,7 +25,7 @@ const ActionItemSchema = z.object({
     type: z.enum(['deadline', 'fee', 'action_item']).describe('The type of the item.'),
 });
 
-export const SummarizeConversationOutputSchema = z.object({
+const SummarizeConversationOutputSchema = z.object({
   summaryText: z
     .string()
     .describe(
