@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from 'react';
@@ -30,6 +31,7 @@ type DisplayMessage = Message & {
   audioDataUri?: string;
   summary?: string;
   isSummarizing?: boolean;
+  fileUrl?: string;
 };
 
 function ChatSkeleton() {

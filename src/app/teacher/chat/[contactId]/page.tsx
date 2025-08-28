@@ -24,6 +24,7 @@ type DisplayMessage = Message & {
   transcription?: string;
   isTranscribing?: boolean;
   audioDataUri?: string;
+  fileUrl?: string;
 };
 
 export default function TeacherChatPage({ params: { contactId } }: { params: { contactId: string } }) {
@@ -122,13 +123,14 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
   }
 
   const handleSendFile = (file: File) => {
-    const newMessage: DisplayMessage = {
+     const newMessage: DisplayMessage = {
       id: String(messages.length + 1),
       sender: 'teacher',
       content: file.name,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'document',
       originalLanguage: 'English',
+      fileUrl: URL.createObjectURL(file), // Create a temporary URL for the file
     };
     addMessage(newMessage);
   };

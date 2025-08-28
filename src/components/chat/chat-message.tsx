@@ -1,12 +1,13 @@
 
 "use client";
 
-import { Sparkles, Languages, FileText, Loader2, Quote, Volume2, Pause, Play } from 'lucide-react';
+import { Sparkles, Languages, FileText, Loader2, Quote, Volume2, Pause, Play, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useEffect, useRef, useState } from 'react';
 import { Slider } from '../ui/slider';
+import Image from 'next/image';
 
 type Message = {
   id: string;
@@ -24,6 +25,7 @@ type Message = {
   audioDataUri?: string;
   summary?: string;
   isSummarizing?: boolean;
+  fileUrl?: string;
 };
 
 type ChatMessageProps = {
@@ -151,22 +153,44 @@ const VoiceNotePlayer = ({ audioDataUri, isSentByCurrentUser }: { audioDataUri: 
 
 const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, isSentByCurrentUser: boolean }) => {
     if (message.type === 'document') {
+        const isImage = message.content.match(/\.(jpeg|jpg|gif|png)$/) != null;
+        const textColor = isSentByCurrentUser ? 'text-primary-foreground' : 'text-card-foreground';
+
         return (
             <div>
-                <div className="flex items-center gap-2 p-3 bg-secondary rounded-md">
-                    <FileText className="w-6 h-6 text-primary" />
-                    <span className="font-medium font-body text-card-foreground">{message.content}</span>
-                </div>
+                 {isImage && message.fileUrl ? (
+                    <a href={message.fileUrl} download={message.content} className="block relative aspect-video w-full rounded-md overflow-hidden group">
+                        <Image src={message.fileUrl} alt={message.content} fill className="object-cover" />
+                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Download className="w-8 h-8 text-white" />
+                        </div>
+                    </a>
+                ) : (
+                    <a 
+                        href={message.fileUrl} 
+                        download={message.content}
+                        className="flex items-center gap-3 p-3 bg-secondary rounded-md hover:bg-secondary/90 transition-colors"
+                    >
+                        <FileText className="w-6 h-6 text-primary flex-shrink-0" />
+                        <div className="flex-1 overflow-hidden">
+                            <p className={cn("font-medium font-body truncate", textColor)}>
+                                {message.content}
+                            </p>
+                             <p className="text-xs text-muted-foreground">Click to download</p>
+                        </div>
+                        <Download className="w-5 h-5 text-muted-foreground" />
+                    </a>
+                )}
                  {(message.isSummarizing || message.summary) && (
                     <div className="mt-3 pt-3 border-t border-border/50">
                         <p className={cn("text-xs font-bold mb-1 font-headline", 'text-primary')}>Summary</p>
                         {message.isSummarizing && !message.summary && (
-                            <div className={cn("flex items-center gap-2", 'text-card-foreground/90' )}>
+                            <div className={cn("flex items-center gap-2", textColor + '/90' )}>
                             <Loader2 className="w-4 h-4 animate-spin" />
                             <span className="text-sm">Summarizing...</span>
                             </div>
                         )}
-                        {message.summary && <p className={cn("font-body text-sm whitespace-pre-wrap", 'text-card-foreground/90')}>{message.summary}</p>}
+                        {message.summary && <p className={cn("font-body text-sm whitespace-pre-wrap", textColor + '/90')}>{message.summary}</p>}
                     </div>
                 )}
             </div>
@@ -234,6 +258,8 @@ export default function ChatMessage({ message, currentUser, onSimplify, onSummar
   const isSentByCurrentUser = message.sender === currentUser;
 
   const showAIActions = !isSentByCurrentUser && (message.type === 'text' || message.type === 'document');
+  const cardPadding = message.type === 'document' && message.content.match(/\.(jpeg|jpg|gif|png)$/) ? 'p-1' : 'p-3';
+
 
   return (
     <div className={cn('flex items-end gap-2', isSentByCurrentUser ? 'justify-end' : 'justify-start')}>
@@ -242,7 +268,7 @@ export default function ChatMessage({ message, currentUser, onSimplify, onSummar
           'shadow-md transition-all',
           isSentByCurrentUser ? 'bg-primary text-primary-foreground' : 'bg-card'
         )}>
-          <CardContent className="p-3">
+          <CardContent className={cardPadding}>
             <MessageContent message={message} isSentByCurrentUser={isSentByCurrentUser} />
           </CardContent>
           {!isSentByCurrentUser && (

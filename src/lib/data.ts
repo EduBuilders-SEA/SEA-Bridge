@@ -1,3 +1,4 @@
+
 export type Message = {
   id: string;
   sender: 'teacher' | 'parent';
@@ -5,6 +6,7 @@ export type Message = {
   timestamp: string;
   type: 'text' | 'document' | 'voice';
   originalLanguage?: string;
+  fileUrl?: string;
 };
 
 export const conversation: Message[] = [
