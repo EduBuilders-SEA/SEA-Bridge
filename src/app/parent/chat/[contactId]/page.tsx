@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import ChatPageLayout from '@/components/chat/chat-page-layout';
 import MessageInput from '@/components/chat/message-input';
 import ChatMessage from '@/components/chat/chat-message';
-import { conversation, type Message, mockVoiceNote } from '@/lib/data';
+import { conversation, type Message } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast"
 import { notFound, useSearchParams, useRouter } from 'next/navigation';
 import { contacts } from '@/lib/contacts';
@@ -156,7 +156,7 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
     addMessage(newMessage);
   };
   
-  const handleSendVoice = async () => {
+  const handleSendVoice = async (audioDataUri: string) => {
     const newId = String(messages.length + 1);
     const newMessage: DisplayMessage = {
       id: newId,
@@ -171,7 +171,7 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
 
     try {
       const result = await transcribeAndTranslate({ 
-        audioDataUri: mockVoiceNote, 
+        audioDataUri: audioDataUri, 
         targetLanguage: 'English' // Teacher's language is assumed to be English for now
       });
       setMessages(prev =>

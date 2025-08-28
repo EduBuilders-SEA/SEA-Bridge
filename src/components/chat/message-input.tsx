@@ -1,7 +1,8 @@
+
 "use client";
 
-import { useState } from 'react';
-import { Send, Paperclip, Mic, MessageSquareText } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Send, Paperclip, Mic, MessageSquareText, StopCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -10,16 +11,22 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 type MessageInputProps = {
   onSendMessage: (content: string) => void;
   onSendSms?: (content: string) => void;
-  onSendVoice?: () => void;
+  onSendVoice?: (audioDataUri: string) => void;
   placeholder?: string;
 };
 
 export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, placeholder }: MessageInputProps) {
   const [text, setText] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const { toast } = useToast();
 
   const handleSend = () => {
     if (text.trim()) {
@@ -35,11 +42,56 @@ export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, pl
     }
   };
   
-  const handleSendVoice = () => {
-    if (onSendVoice) {
-      onSendVoice();
+  const handleStartRecording = async () => {
+    if (isRecording || !onSendVoice) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorderRef.current.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          onSendVoice(reader.result as string);
+        };
+        // Stop all tracks to release the microphone
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Microphone Access Denied',
+        description: 'Please enable microphone permissions in your browser settings.',
+      });
     }
   };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleVoiceClick = () => {
+    if (isRecording) {
+      handleStopRecording();
+    } else {
+      handleStartRecording();
+    }
+  };
+
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -58,6 +110,7 @@ export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, pl
           placeholder={placeholder || 'Type your message...'}
           className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none min-h-[40px] h-10"
           rows={1}
+          disabled={isRecording}
         />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -72,13 +125,21 @@ export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, pl
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button onClick={handleSendVoice} variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0">
-              <Mic className="w-5 h-5" />
-              <span className="sr-only">Record voice note</span>
+            <Button 
+              onClick={handleVoiceClick} 
+              variant="ghost" 
+              size="icon" 
+              className={cn(
+                "text-muted-foreground hover:text-primary shrink-0",
+                isRecording && "text-red-500 hover:text-red-600"
+              )}
+            >
+              {isRecording ? <StopCircle className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
+              <span className="sr-only">{isRecording ? "Stop recording" : "Record voice note"}</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Send voice note</p>
+            <p>{isRecording ? "Stop recording" : "Send voice note"}</p>
           </TooltipContent>
         </Tooltip>
         {onSendSms && (
@@ -94,7 +155,7 @@ export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, pl
             </TooltipContent>
           </Tooltip>
         )}
-        <Button onClick={handleSend} size="icon" className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0">
+        <Button onClick={handleSend} size="icon" className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0" disabled={isRecording}>
           <Send className="w-5 h-5" />
           <span className="sr-only">Send</span>
         </Button>
