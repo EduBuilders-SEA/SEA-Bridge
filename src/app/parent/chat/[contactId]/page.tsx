@@ -14,6 +14,7 @@ import { ProgressSummaryCard, ProgressSummaryCardSkeleton } from '@/components/c
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { summarizeConversation, type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
+import { translateMessage } from '@/ai/flows/translate-message';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
 
 
@@ -105,12 +106,31 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
   };
 
   const handleTranslate = async (messageId: string) => {
-    // Placeholder logic, real implementation removed
+    const message = messages.find(m => m.id === messageId);
+    if (!message || message.translatedContent) return;
+
     setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isTranslating: true } : m));
-    console.log(`Translating message ${messageId}`);
-    setTimeout(() => {
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isTranslating: false, translatedContent: `[Translated content for: ${m.content}]` } : m));
-    }, 1000);
+    try {
+      const result = await translateMessage({
+        content: message.content,
+        targetLanguage: parentLanguage,
+      });
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId
+            ? { ...m, translatedContent: result.translation, isTranslating: false }
+            : m
+        )
+      );
+    } catch (error) {
+       console.error('Failed to translate message:', error);
+       toast({
+         variant: 'destructive',
+         title: 'Error',
+         description: 'Could not translate the message. Please try again.',
+       });
+       setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isTranslating: false } : m));
+    }
   };
 
   const onTabChange = async (tab: string) => {
