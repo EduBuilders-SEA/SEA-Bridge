@@ -104,7 +104,8 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
                 isTranscribing: false, 
                 content: result.transcription, // Use transcription as main content
                 transcription: result.transcription,
-                translatedContent: result.translation 
+                translatedContent: result.translation,
+                audioDataUri, // Make sure audio is playable
               }
             : m
         )
@@ -119,6 +120,18 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
       setMessages(prev => prev.map(m => m.id === newId ? { ...m, isTranscribing: false, content: "Error processing voice note" } : m));
     }
   }
+
+  const handleSendFile = (file: File) => {
+    const newMessage: DisplayMessage = {
+      id: String(messages.length + 1),
+      sender: 'teacher',
+      content: file.name,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: 'document',
+      originalLanguage: 'English',
+    };
+    addMessage(newMessage);
+  };
 
 
   const onTabChange = async (tab: string) => {
@@ -171,7 +184,11 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
               ))}
           </div>
           <div className="p-4 md:p-6 pt-2 border-t bg-background">
-              <MessageInput onSendMessage={handleSendMessage} onSendVoice={handleSendVoice} />
+              <MessageInput 
+                onSendMessage={handleSendMessage} 
+                onSendVoice={handleSendVoice}
+                onSendFile={handleSendFile}
+               />
           </div>
         </TabsContent>
         <TabsContent value="summary" className="flex-1 overflow-y-auto p-4 md:p-6">

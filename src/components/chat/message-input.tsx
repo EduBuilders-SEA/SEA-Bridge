@@ -18,14 +18,16 @@ type MessageInputProps = {
   onSendMessage: (content: string) => void;
   onSendSms?: (content: string) => void;
   onSendVoice?: (audioDataUri: string) => void;
+  onSendFile?: (file: File) => void;
   placeholder?: string;
 };
 
-export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, placeholder }: MessageInputProps) {
+export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, onSendFile, placeholder }: MessageInputProps) {
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleSend = () => {
@@ -92,6 +94,17 @@ export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, pl
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && onSendFile) {
+      onSendFile(file);
+    }
+    // Reset file input
+    if(fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
+  };
+
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -112,15 +125,27 @@ export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, pl
           rows={1}
           disabled={isRecording}
         />
+        <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0">
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                className="text-muted-foreground hover:text-primary shrink-0"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!onSendFile}
+            >
               <Paperclip className="w-5 h-5" />
               <span className="sr-only">Attach file</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Attach file (not implemented)</p>
+            <p>Attach file</p>
           </TooltipContent>
         </Tooltip>
         <Tooltip>

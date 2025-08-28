@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Sparkles, Languages, FileText, Loader2, Quote, Volume2, Pause, Play } from 'lucide-react';
@@ -68,12 +69,11 @@ const VoiceNotePlayer = ({ audioDataUri, isSentByCurrentUser }: { audioDataUri: 
                 if (isFinite(audio.duration)) {
                   setDuration(audio.duration);
                 }
-                setCurrentTime(audio.currentTime);
             }
 
             const setAudioTime = () => setCurrentTime(audio.currentTime);
 
-            audio.addEventListener('loadeddata', setAudioData);
+            audio.addEventListener('loadedmetadata', setAudioData);
             audio.addEventListener('timeupdate', setAudioTime);
 
             // If audio is already loaded
@@ -82,7 +82,7 @@ const VoiceNotePlayer = ({ audioDataUri, isSentByCurrentUser }: { audioDataUri: 
             }
 
             return () => {
-                audio.removeEventListener('loadeddata', setAudioData);
+                audio.removeEventListener('loadedmetadata', setAudioData);
                 audio.removeEventListener('timeupdate', setAudioTime);
             }
         }
@@ -114,27 +114,27 @@ const VoiceNotePlayer = ({ audioDataUri, isSentByCurrentUser }: { audioDataUri: 
         }
     };
 
-    const timeClass = isSentByCurrentUser ? 'text-primary-foreground/80' : 'text-card-foreground/90';
+    const timeClass = isSentByCurrentUser ? 'text-primary-foreground/80' : 'text-card-foreground/80';
 
     return (
-        <div className="flex items-center gap-3 p-3 bg-card/5 rounded-md">
+        <div className="flex items-center gap-3 p-2 rounded-md">
             <audio ref={audioRef} src={audioDataUri} preload="metadata" onEnded={() => setIsPlaying(false)} />
-            <Button variant="ghost" size="icon" onClick={togglePlayPause} className="w-8 h-8 rounded-full">
+            <Button variant="ghost" size="icon" onClick={togglePlayPause} className="w-8 h-8 rounded-full flex-shrink-0">
                 {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
             </Button>
             <div className="flex-1 flex items-center gap-2">
-                <span className={cn("text-xs font-mono", timeClass)}>{formatTime(currentTime)}</span>
+                <span className={cn("text-xs font-mono w-9", timeClass)}>{formatTime(currentTime)}</span>
                 <Slider
                     min={0}
-                    max={duration}
+                    max={duration || 1}
                     step={0.1}
                     value={[currentTime]}
                     onValueChange={handleSliderChange}
                     className="flex-1"
                 />
-                 <span className={cn("text-xs font-mono", timeClass)}>{formatTime(duration)}</span>
+                 <span className={cn("text-xs font-mono w-9", timeClass)}>{formatTime(duration)}</span>
             </div>
-            <div className="flex items-center gap-2 w-24">
+            <div className="hidden sm:flex items-center gap-2 w-24">
                 <Volume2 className="w-4 h-4" />
                 <Slider
                     min={0}
@@ -255,13 +255,13 @@ export default function ChatMessage({ message, currentUser, onSimplify, onSummar
                 </span>
                 {showAIActions && (
                     <div className="flex items-center gap-2">
-                        {message.type === 'text' && onSimplify && (
+                        {message.type === 'text' && onSimplify && !message.simplifiedContent && (
                             <AiActionButton isLoading={message.isSimplifying} onClick={() => onSimplify(message.id)}>
                                 <Sparkles className="w-3 h-3" />
                                 <span>Simplify</span>
                             </AiActionButton>
                         )}
-                        {message.type === 'document' && onSummarize && (
+                        {message.type === 'document' && onSummarize && !message.summary && (
                              <AiActionButton isLoading={message.isSummarizing} onClick={() => onSummarize(message.id)}>
                                 <Sparkles className="w-3 h-3" />
                                 <span>Summarize</span>
