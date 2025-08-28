@@ -1,8 +1,8 @@
-# LinguaLearn Bridge - Python-Centric AWS Architecture
+# LinguaLearn Bridge - Decoupled FastAPI Architecture
 
-This document outlines the final, pragmatic technical architecture for the LinguaLearn Bridge application. This plan is designed for a team that prefers **Python** for backend development and needs to leverage the **AWS ecosystem** for a hackathon.
+This document outlines the final technical architecture for the LinguaLearn Bridge application. This plan leverages a decoupled approach with a Python/FastAPI backend and a Next.js frontend, designed to allow for clear separation of concerns and to leverage the strengths of each framework.
 
-**Core Philosophy:** Decouple the frontend and backend to allow the team to work in parallel using their preferred technologies. The frontend team will focus on Next.js for the UI, while the backend team will build with Python on AWS Lambda.
+**Core Philosophy:** Separate the AI/business logic (Python) from the user interface (TypeScript/React) to enable parallel development and utilize the best tools for each job.
 
 ```mermaid
 graph TD
@@ -14,92 +14,86 @@ graph TD
         B[Next.js Frontend @ Vercel]
         B -- Renders & Serves --> A
     end
+    
+    subgraph Backend Services
+      subgraph API
+        C[FastAPI Application]
+      end
 
-    subgraph AWS Cloud
-        subgraph API
-            C[Amazon API Gateway]
-        end
-
-        subgraph Compute
-            D[AWS Lambda Functions (Python)]
-        end
-
-        subgraph AI/ML
-            E[Amazon Bedrock]
-            F[SEA-Lion Custom Model]
-        end
-
-        subgraph Database
-            G[Amazon RDS - PostgreSQL]
-        end
-
-        subgraph Real-time Messaging
-            H[AWS AppSync - WebSockets]
-        end
-
-        subgraph Storage
-            I[Amazon S3]
-        end
-
-        subgraph Authentication
-            J[Amazon Cognito]
-        end
-
-        A -- API Calls --> C
-        C -- Triggers --> D
-        D -- Authenticates via --> J
-        D -- Invokes AI Model via --> E
-        E -- Uses --> F
-        D -- Queries/Mutates --> G
-        D -- Publishes Messages to --> H
-        A -- Subscribes for Live Chat via --> H
-        D -- Generates Signed URLs for --> I
-        A -- Uploads/Downloads Directly --> I
+      subgraph AI/ML
+          D[SEA-LION Model Endpoint]
+          E[GCP Speech-to-Text / Other AI Service]
+      end
     end
+
+    subgraph External Services
+        subgraph Supabase
+            F[Supabase Auth]
+            G[Supabase Postgres DB]
+            H[Supabase Realtime]
+            I[Supabase Storage]
+        end
+    end
+
+    A -- API Calls --> C
+    
+    C -- Authenticates via --> F
+    C -- Queries/Mutates DB --> G
+    C -- Publishes to & Listens via --> H
+    A -- Subscribes for Live Chat via --> H
+    
+    C -- Generates Signed URLs for --> I
+    A -- Uploads/Downloads Directly --> I
+
+    C -- Invokes for Translation --> D
+    C -- Invokes for Transcription --> E
+
 
     %% Flow Descriptions
     classDef user fill:#E3F2FD,stroke:#64B5F6,stroke-width:2px;
     classDef vercel fill:#f0f0f0,stroke:#000,stroke-width:2px;
-    classDef aws fill:#fff5e6,stroke:#FF9900,stroke-width:2px;
+    classDef backend fill:#EFEBE9,stroke:#795548,stroke-width:2px;
+    classDef services fill:#E8F5E9,stroke:#4CAF50,stroke-width:2px;
 
     class A user;
     class B vercel;
-    class C,D,E,F,G,H,I,J aws;
+    class C,D,E backend;
+    class F,G,H,I services;
 
 ```
 
 ### Component Breakdown:
 
 1.  **Frontend (Vercel):**
-    *   **Framework:** **Next.js**. Used *only* for its UI rendering capabilities.
-    *   **Responsibilities:** Building and rendering React components, managing UI state, and making authenticated API calls to the AWS backend via API Gateway.
-    *   **UI Library:** shadcn/ui and Tailwind CSS.
+    *   **Framework:** **Next.js with App Router**.
+    *   **Responsibilities:** Building and rendering React components, managing UI state, and making authenticated API calls to the FastAPI backend.
+    *   **UI/Forms:** shadcn/ui, Tailwind CSS, React Hook Form, and Zod for client-side validation.
+    *   **API Client:** A typed API client (`src/lib/api/`) will be created to interact with the backend, providing type safety between the frontend and backend.
 
-2.  **Backend API (AWS Lambda + API Gateway):**
-    *   **Language:** **Python**.
-    *   **Services:**
-        *   **AWS Lambda:** All backend logic (sending messages, translating text, etc.) will be written as small, independent Python functions.
-        *   **Amazon API Gateway:** Provides RESTful HTTPS endpoints that trigger the corresponding Lambda functions. This is the secure front door to our backend.
+2.  **Backend (FastAPI):**
+    *   **Framework:** **FastAPI** (Python).
+    *   **Responsibilities:** Exposing RESTful API endpoints for all business logic, including user authentication, database operations, and orchestrating calls to AI services.
+    *   **AI Orchestration:** Can use **LangChain** or a simple service client (`sea_lion_client.py`) to interact with AI models.
 
-3.  **Authentication (AWS):**
-    *   **Service:** **Amazon Cognito.**
-    *   **Flow:** The Next.js frontend will use a library like AWS Amplify to handle user sign-up/sign-in. This will provide JWTs (tokens) that are sent with every API call. API Gateway and Lambda will validate these tokens to secure the backend.
+3.  **Authentication (Supabase):**
+    *   **Service:** **Supabase Auth.**
+    *   **Flow:** The Next.js frontend initiates sign-in/sign-up. The received JWT is sent to the FastAPI backend with every request. The backend validates the token using Supabase's public key to secure its endpoints.
 
-4.  **Database (AWS):**
-    *   **Service:** **Amazon RDS for PostgreSQL.**
-    *   **Access:** The Python Lambda functions will connect to the RDS instance to store and retrieve data for users, messages, and contacts.
+4.  **Database (Supabase):**
+    *   **Service:** **Supabase Postgres.**
+    *   **Access:** The FastAPI backend will handle all database reads and writes.
 
-5.  **AI/ML (AWS):**
-    *   **Service:** **Amazon Bedrock.**
-    *   **Model:** The **SEA-Lion model** will be imported and hosted in Bedrock.
-    *   **Usage:** Python Lambda functions will use the `boto3` (AWS SDK for Python) to call the Bedrock API, sending text for translation or summarization.
+5.  **Real-time Chat (Supabase):**
+    *   **Service:** **Supabase Realtime.**
+    *   **Flow:** The FastAPI backend, after persisting a message to the database, can broadcast an event using the Supabase Realtime client. Alternatively, the Next.js frontend can subscribe directly to database changes, simplifying the backend logic.
 
-6.  **Real-time Chat (AWS):**
-    *   **Service:** **AWS AppSync.**
-    *   **Usage:** AppSync is a managed GraphQL service that can also handle real-time data over WebSockets. When a new message is saved to the database, a Lambda function can publish a mutation to AppSync, which will then push the new message to all subscribed chat clients.
+6.  **AI/ML (Innovation Hotspot):**
+    *   **Primary AI Service:** **SEA-Lion Model Endpoint**.
+    *   **Point of Innovation:** The **translation and transcription-translation** flows are the prime candidates for showcasing the SEA-Lion model's unique capabilities. Use it here to demonstrate superior handling of Southeast Asian languages, dialects, and cultural nuances compared to generic models.
+    *   **Other AI Services:** Standard models (e.g., Gemini, GCP Speech-to-Text) can be used for less critical tasks like simplification or summarization where SEA-Lion's specialization is not required.
 
-7.  **File Storage (AWS):**
-    *   **Service:** **Amazon S3.**
-    *   **Flow:** To upload a file, the frontend will first ask the Python backend for a secure, temporary upload link (an S3 pre-signed URL). The frontend then uses this URL to upload the file directly to S3. This is secure and efficient.
+7.  **File Storage (Supabase):**
+    *   **Service:** **Supabase Storage.**
+    *   **Flow:** To upload a file, the frontend will request a secure, temporary upload link from the FastAPI backend. The frontend then uses this URL to upload the file directly to Supabase Storage.
 
-This architecture is robust, fully leverages the AWS ecosystem, and most importantly, is tailored to your team's existing Python skills.
+This decoupled architecture provides a robust and scalable foundation for the LinguaLearn Bridge application.
