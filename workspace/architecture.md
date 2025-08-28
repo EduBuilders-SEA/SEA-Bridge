@@ -33,9 +33,10 @@ graph TD
         end
 
         subgraph "AI & ML Services"
-            Bedrock[("Amazon Bedrock<br>Summarization")]
-            Translate[("Amazon Translate")]
+            Bedrock[("Amazon Bedrock")]
+            SEALion_Model[("Custom Model<br><i>SEA-Lion</i>")]
             Transcribe[("Amazon Transcribe<br>Speech-to-Text")]
+            Bedrock -- hosts --> SEALion_Model
         end
 
         subgraph "Data & Storage Layer"
@@ -66,7 +67,7 @@ graph TD
     APIGW -- Triggers --> Lambda_SendMessage
 
     %% Lambdas to AI Services
-    Lambda_Translate -- Calls --> Translate
+    Lambda_Translate -- Calls --> Bedrock
     Lambda_Summarize -- Calls --> Bedrock
     Lambda_Transcribe -- Calls --> Transcribe
     Lambda_SendMessage -- Publishes to --> SNS
@@ -101,8 +102,8 @@ graph TD
     *   **AWS Lambda**: Hosts the backend logic for individual AI tasks (translation, summarization, etc.) as separate, stateless functions. This approach is highly scalable and cost-effective, as you only pay for compute time when the functions are executed.
 
 5.  **AI & ML Services:**
-    *   **Amazon Translate**: Handles all language translation tasks.
-    *   **Amazon Bedrock**: Provides access to powerful foundation models for complex tasks like message summarization.
+    *   **Amazon Bedrock**: A fully managed service that offers a choice of high-performing foundation models. It will be used to host and serve the custom **SEA-Lion Model**.
+        *   **Custom Model (SEA-Lion)**: An imported model specializing in Southeast Asian languages, used for all translation and summarization tasks to ensure high accuracy and contextual understanding.
     *   **Amazon Transcribe**: Converts speech from voice notes into text.
 
 6.  **Data & Storage:**
