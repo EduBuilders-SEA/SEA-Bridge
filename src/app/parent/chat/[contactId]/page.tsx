@@ -211,7 +211,7 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
       content: file.name,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       type: 'document',
-      originalLanguage: 'English',
+      originalLanguage: parentLanguage,
       fileUrl: URL.createObjectURL(file), // Create a temporary URL for the file
     };
     addMessage(newMessage);
@@ -363,5 +363,3 @@ export default function ParentChatPage({ params }: { params: { contactId: string
     </Suspense>
   )
 }
-
-    

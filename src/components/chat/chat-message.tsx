@@ -268,7 +268,7 @@ export default function ChatMessage({ message, currentUser, onSimplify, onSummar
   const isSentByCurrentUser = message.sender === currentUser;
 
   const showAIActions = !isSentByCurrentUser && (message.type === 'text' || message.type === 'document');
-  const cardPadding = message.type === 'document' && message.content.match(/\.(jpeg|jpg|gif|png)$/i) ? 'p-1' : 'p-3';
+  const cardPadding = (message.type === 'document' && message.content.match(/\.(jpeg|jpg|gif|png)$/i)) || message.type === 'voice' ? 'p-1' : 'p-3';
 
 
   return (
