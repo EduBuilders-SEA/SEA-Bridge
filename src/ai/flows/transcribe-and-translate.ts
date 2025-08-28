@@ -54,9 +54,7 @@ const transcribeAndTranslateFlow = ai.defineFlow(
     }
 
     const { output: translationOutput } = await ai.generate({
-      prompt: `Translate the following text into ${targetLanguage}. Preserve critical details like names, dates, and times.
-      
-      Text: "${transcription}"`,
+      prompt: `Translate the following text into ${targetLanguage}. Preserve critical details like names, dates, and times.\n\nText: "${transcription}"`,
       output: {
         format: 'json',
         schema: z.object({ translation: z.string() })
