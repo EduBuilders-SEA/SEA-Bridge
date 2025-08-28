@@ -1,9 +1,11 @@
 "use client";
 
-import { Sparkles, Languages, FileText, Music4, Loader2, Quote } from 'lucide-react';
+import { Sparkles, Languages, FileText, Music4, Loader2, Quote, Volume2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { useEffect, useRef, useState } from 'react';
+import { Slider } from '../ui/slider';
 
 type Message = {
   id: string;
@@ -40,6 +42,98 @@ const AiActionButton = ({ isLoading, onClick, children }: { isLoading?: boolean;
     </Button>
 );
 
+const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
+const VoiceNotePlayer = ({ audioDataUri }: { audioDataUri: string }) => {
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [duration, setDuration] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [volume, setVolume] = useState(1);
+
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (audio) {
+            const setAudioData = () => {
+                setDuration(audio.duration);
+                setCurrentTime(audio.currentTime);
+            }
+
+            const setAudioTime = () => setCurrentTime(audio.currentTime);
+
+            audio.addEventListener('loadeddata', setAudioData);
+            audio.addEventListener('timeupdate', setAudioTime);
+
+            return () => {
+                audio.removeEventListener('loadeddata', setAudioData);
+                audio.removeEventListener('timeupdate', setAudioTime);
+            }
+        }
+    }, []);
+
+    const togglePlayPause = () => {
+        const audio = audioRef.current;
+        if (audio) {
+            if (isPlaying) {
+                audio.pause();
+            } else {
+                audio.play();
+            }
+            setIsPlaying(!isPlaying);
+        }
+    };
+    
+    const handleSliderChange = (value: number[]) => {
+        if(audioRef.current) {
+            audioRef.current.currentTime = value[0];
+            setCurrentTime(value[0]);
+        }
+    };
+
+    const handleVolumeChange = (value: number[]) => {
+        if (audioRef.current) {
+            audioRef.current.volume = value[0];
+            setVolume(value[0]);
+        }
+    };
+
+    return (
+        <div className="flex items-center gap-3 p-3 bg-secondary rounded-md">
+            <audio ref={audioRef} src={audioDataUri} preload="metadata" onEnded={() => setIsPlaying(false)} />
+            <Button variant="ghost" size="icon" onClick={togglePlayPause} className="w-8 h-8 rounded-full">
+                {isPlaying ? <Music4 className="w-4 h-4" /> : <Music4 className="w-4 h-4" />}
+            </Button>
+            <div className="flex-1 flex items-center gap-2">
+                <span className="text-xs font-mono">{formatTime(currentTime)}</span>
+                <Slider
+                    min={0}
+                    max={duration}
+                    step={0.1}
+                    value={[currentTime]}
+                    onValueChange={handleSliderChange}
+                    className="flex-1"
+                />
+                 <span className="text-xs font-mono">{formatTime(duration)}</span>
+            </div>
+            <div className="flex items-center gap-2 w-24">
+                <Volume2 className="w-4 h-4" />
+                <Slider
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    value={[volume]}
+                    onValueChange={handleVolumeChange}
+                    className="flex-1"
+                />
+            </div>
+        </div>
+    )
+}
+
 const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, isSentByCurrentUser: boolean }) => {
     if (message.type === 'document') {
         return (
@@ -52,7 +146,7 @@ const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, is
     if (message.type === 'voice' && message.audioDataUri) {
         return (
              <div>
-                <audio src={message.audioDataUri} controls className="w-full h-10" />
+                <VoiceNotePlayer audioDataUri={message.audioDataUri} />
                 {message.isTranscribing && (
                     <div className="mt-3 pt-3 border-t border-border/50">
                          <div className={cn("flex items-center gap-2", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90' )}>

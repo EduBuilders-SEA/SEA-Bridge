@@ -43,7 +43,7 @@ const transcribeAndTranslateFlow = ai.defineFlow(
   async ({ audioDataUri, targetLanguage }) => {
     const { text: transcription } = await ai.generate({
         model: 'googleai/gemini-2.0-flash',
-        prompt: [{ media: { url: audioDataUri } }],
+        prompt: [{text: "Transcribe the following audio:"}, { media: { url: audioDataUri } }],
         config: {
             responseModalities: ['TEXT'],
         },
