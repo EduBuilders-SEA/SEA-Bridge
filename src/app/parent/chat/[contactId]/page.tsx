@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import ChatPageLayout from '@/components/chat/chat-page-layout';
 import MessageInput from '@/components/chat/message-input';
 import ChatMessage from '@/components/chat/chat-message';
@@ -12,13 +12,42 @@ import { contacts } from '@/lib/contacts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProgressSummaryCard } from '@/components/chat/progress-summary-card';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 type DisplayMessage = Message & {
   translatedContent?: string;
   isTranslating?: boolean;
 };
 
-export default function ParentChatPage({ params: { contactId } }: { params: { contactId: string } }) {
+function ChatSkeleton() {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex justify-center p-2 border-b">
+        <div className="flex items-center space-x-2">
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-8 w-20" />
+        </div>
+      </div>
+      <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6">
+        <div className="flex items-end gap-2 justify-start">
+            <Skeleton className="h-16 w-3/4 rounded-lg" />
+        </div>
+         <div className="flex items-end gap-2 justify-end">
+            <Skeleton className="h-12 w-1/2 rounded-lg" />
+        </div>
+        <div className="flex items-end gap-2 justify-start">
+            <Skeleton className="h-24 w-3/4 rounded-lg" />
+        </div>
+      </div>
+      <div className="p-4 md:p-6 pt-2 border-t bg-background">
+        <Skeleton className="h-10 w-full" />
+      </div>
+    </div>
+  )
+}
+
+function ParentChatPageComponent({ params: { contactId } }: { params: { contactId: string } }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const lang = searchParams.get('lang');
@@ -125,4 +154,13 @@ export default function ParentChatPage({ params: { contactId } }: { params: { co
       </Tabs>
     </ChatPageLayout>
   );
+}
+
+
+export default function ParentChatPage({ params }: { params: { contactId: string } }) {
+  return (
+    <Suspense fallback={<ChatSkeleton />}>
+      <ParentChatPageComponent params={params} />
+    </Suspense>
+  )
 }
