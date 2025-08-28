@@ -11,11 +11,11 @@ import { contacts } from '@/lib/contacts';
 import { notFound, useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProgressSummaryCard, ProgressSummaryCardSkeleton } from '@/components/chat/progress-summary-card';
-import { Card, CardContent } from '@/components/ui/card';
-import { summarizeConversation, type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
+import { summarizeConversation, type SummarizeConversationOutput, type AttendanceSchema } from '@/ai/flows/summarize-conversation';
 import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
 import { chunkMessageForSms } from '@/ai/flows/chunk-message-for-sms';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
+import { AttendanceForm } from '@/components/chat/attendance-form';
 
 type DisplayMessage = Message & {
   translatedContent?: string;
@@ -35,6 +35,7 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
   const [teacherName, setTeacherName] = useState('Teacher');
   const [summary, setSummary] = useState<SummarizeConversationOutput | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [attendance, setAttendance] = useState<AttendanceSchema>({ present: 18, absent: 1, tardy: 1 });
   const router = useRouter();
   
   useEffect(() => {
@@ -168,29 +169,36 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
     addMessage(newMessage);
   };
 
+  const generateSummary = async (currentAttendance: AttendanceSchema) => {
+    setIsGeneratingSummary(true);
+    setSummary(null);
+    try {
+      const conversationToSummarize = messages.map(({ sender, content }) => ({ sender, content }));
+      const result = await summarizeConversation({ 
+        messages: conversationToSummarize,
+        attendance: currentAttendance
+      });
+      setSummary(result);
+    } catch (error) {
+      console.error('Failed to generate summary:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not generate the summary. Please try again.',
+      });
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  }
 
-  const onTabChange = async (tab: string) => {
+  const handleUpdateAttendance = (newAttendance: AttendanceSchema) => {
+    setAttendance(newAttendance);
+    generateSummary(newAttendance);
+  }
+
+  const onTabChange = (tab: string) => {
     if (tab === 'summary' && !summary && !isGeneratingSummary) {
-      setIsGeneratingSummary(true);
-      try {
-        const conversationToSummarize = messages.map(({ sender, content }) => ({ sender, content }));
-        // Mock attendance data for now. In a real app, this would be fetched.
-        const mockAttendance = { present: 18, absent: 1, tardy: 1 };
-        const result = await summarizeConversation({ 
-          messages: conversationToSummarize,
-          attendance: mockAttendance
-        });
-        setSummary(result);
-      } catch (error) {
-        console.error('Failed to generate summary:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Could not generate the summary. Please try again.',
-        });
-      } finally {
-        setIsGeneratingSummary(false);
-      }
+      generateSummary(attendance);
     }
   };
 
@@ -227,12 +235,16 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
                />
           </div>
         </TabsContent>
-        <TabsContent value="summary" className="flex-1 overflow-y-auto p-4 md:p-6">
-            <div className="flex justify-end mb-4">
+        <TabsContent value="summary" className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+            <div className="flex justify-end">
                  <DateRangePicker />
             </div>
+             <AttendanceForm 
+              initialData={attendance}
+              onUpdateAttendance={handleUpdateAttendance}
+            />
             {isGeneratingSummary && <ProgressSummaryCardSkeleton />}
-            {summary && (
+            {summary && !isGeneratingSummary && (
               <ProgressSummaryCard 
                 studentName={contact.childName}
                 summaryText={summary.summaryText}
