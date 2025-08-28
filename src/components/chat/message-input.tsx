@@ -14,10 +14,11 @@ import {
 type MessageInputProps = {
   onSendMessage: (content: string) => void;
   onSendSms?: (content: string) => void;
+  onSendVoice?: () => void;
   placeholder?: string;
 };
 
-export default function MessageInput({ onSendMessage, onSendSms, placeholder }: MessageInputProps) {
+export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, placeholder }: MessageInputProps) {
   const [text, setText] = useState('');
 
   const handleSend = () => {
@@ -31,6 +32,12 @@ export default function MessageInput({ onSendMessage, onSendSms, placeholder }: 
     if (text.trim() && onSendSms) {
       onSendSms(text);
       setText('');
+    }
+  };
+  
+  const handleSendVoice = () => {
+    if (onSendVoice) {
+      onSendVoice();
     }
   };
 
@@ -65,13 +72,13 @@ export default function MessageInput({ onSendMessage, onSendSms, placeholder }: 
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0">
+            <Button onClick={handleSendVoice} variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0">
               <Mic className="w-5 h-5" />
               <span className="sr-only">Record voice note</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Record voice note (not implemented)</p>
+            <p>Send voice note</p>
           </TooltipContent>
         </Tooltip>
         {onSendSms && (

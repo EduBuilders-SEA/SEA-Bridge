@@ -5,17 +5,17 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import ChatPageLayout from '@/components/chat/chat-page-layout';
 import MessageInput from '@/components/chat/message-input';
 import ChatMessage from '@/components/chat/chat-message';
-import { conversation, type Message } from '@/lib/data';
+import { conversation, type Message, mockVoiceNote } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast"
 import { notFound, useSearchParams, useRouter } from 'next/navigation';
 import { contacts } from '@/lib/contacts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ProgressSummaryCard, ProgressSummaryCardSkeleton } from '@/components/chat/progress-summary-card';
-import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { summarizeConversation, type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
 import { translateMessage } from '@/ai/flows/translate-message';
 import { simplifyMessage } from '@/ai/flows/simplify-message';
+import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
 
 
@@ -24,6 +24,8 @@ type DisplayMessage = Message & {
   isTranslating?: boolean;
   simplifiedContent?: string;
   isSimplifying?: boolean;
+  transcription?: string;
+  isTranscribing?: boolean;
 };
 
 function ChatSkeleton() {
@@ -153,6 +155,48 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
     };
     addMessage(newMessage);
   };
+  
+  const handleSendVoice = async () => {
+    const newId = String(messages.length + 1);
+    const newMessage: DisplayMessage = {
+      id: newId,
+      sender: 'parent',
+      content: "Voice note", // Placeholder content
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: 'voice',
+      originalLanguage: parentLanguage,
+      isTranscribing: true,
+    };
+    addMessage(newMessage);
+
+    try {
+      const result = await transcribeAndTranslate({ 
+        audioDataUri: mockVoiceNote, 
+        targetLanguage: 'English' // Teacher's language is assumed to be English for now
+      });
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === newId
+            ? { ...m, 
+                isTranscribing: false, 
+                content: result.transcription, // Use transcription as main content
+                transcription: result.transcription,
+                translatedContent: result.translation 
+              }
+            : m
+        )
+      );
+    } catch (error) {
+      console.error('Failed to transcribe voice note:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not process the voice note. Please try again.',
+      });
+      setMessages(prev => prev.map(m => m.id === newId ? { ...m, isTranscribing: false, content: "Error processing voice note" } : m));
+    }
+  }
+
 
   const handleSimplify = async (messageId: string) => {
     const message = messages.find(m => m.id === messageId);
@@ -236,7 +280,11 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
             ))}
           </div>
           <div className="p-4 md:p-6 pt-2 border-t bg-background">
-            <MessageInput onSendMessage={handleSendMessage} placeholder={`Reply in ${parentLanguage}...`} />
+            <MessageInput 
+              onSendMessage={handleSendMessage} 
+              onSendVoice={handleSendVoice}
+              placeholder={`Reply in ${parentLanguage}...`} 
+            />
           </div>
         </TabsContent>
          <TabsContent value="summary" className="flex-1 overflow-y-auto p-4 md:p-6">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Languages, FileText, Music4, Loader2 } from 'lucide-react';
+import { Sparkles, Languages, FileText, Music4, Loader2, Quote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -16,6 +16,8 @@ type Message = {
   isTranslating?: boolean;
   simplifiedContent?: string;
   isSimplifying?: boolean;
+  transcription?: string;
+  isTranscribing?: boolean;
 };
 
 type ChatMessageProps = {
@@ -48,16 +50,44 @@ const MessageContent = ({ message }: { message: Message }) => {
     }
     if (message.type === 'voice') {
         return (
-            <div className="flex items-center gap-3 p-2 bg-secondary rounded-full w-fit">
-                <div className="bg-primary text-primary-foreground rounded-full p-2">
-                    <Music4 className="w-4 h-4" />
+             <div>
+                <div className="flex items-center gap-3 p-2 bg-secondary rounded-full w-fit">
+                    <div className="bg-primary text-primary-foreground rounded-full p-2">
+                        <Music4 className="w-4 h-4" />
+                    </div>
+                    <div className="w-40 h-1 bg-muted-foreground/30 rounded-full relative">
+                        <div className="absolute top-0 left-0 h-1 w-2/3 bg-primary rounded-full"></div>
+                        <div className="absolute top-1/2 -right-1 h-3 w-3 bg-primary rounded-full -translate-y-1/2"></div>
+                    </div>
+                    <span className="text-xs font-mono text-muted-foreground">0:12</span>
                 </div>
-                <div className="w-40 h-1 bg-muted-foreground/30 rounded-full relative">
-                    <div className="absolute top-0 left-0 h-1 w-2/3 bg-primary rounded-full"></div>
-                    <div className="absolute top-1/2 -right-1 h-3 w-3 bg-primary rounded-full -translate-y-1/2"></div>
-                </div>
-                <span className="text-xs font-mono text-muted-foreground">0:12</span>
-            </div>
+                {message.isTranscribing && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                         <div className="flex items-center gap-2 text-primary/90">
+                           <Loader2 className="w-4 h-4 animate-spin" />
+                           <span className="text-sm">Processing audio...</span>
+                        </div>
+                    </div>
+                )}
+                {message.transcription && (
+                     <div className="mt-3 pt-3 border-t border-border/50">
+                        <p className="text-xs font-bold text-primary mb-1 font-headline flex items-center gap-1.5"><Quote className="w-4 h-4" /> Transcription</p>
+                        <p className="font-body text-sm text-primary/90 italic">"{message.transcription}"</p>
+                    </div>
+                )}
+                 {(message.translatedContent) && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                        <p className="text-xs font-bold text-primary mb-1 font-headline">Translation</p>
+                        {message.isTranslating && !message.translatedContent && (
+                            <div className="flex items-center gap-2 text-primary/90">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="text-sm">Translating...</span>
+                            </div>
+                        )}
+                        {message.translatedContent && <p className="font-body text-sm text-primary/90">{message.translatedContent}</p>}
+                    </div>
+                )}
+             </div>
         )
     }
     return (

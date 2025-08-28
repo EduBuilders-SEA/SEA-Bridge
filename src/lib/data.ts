@@ -49,3 +49,8 @@ export const conversation: Message[] = [
     originalLanguage: 'English'
   },
 ];
+
+// This is a mock base64 encoded audio file.
+// In a real application, this would be generated from a browser's recording API.
+// This is a silent 1-second WAV file.
+export const mockVoiceNote = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
