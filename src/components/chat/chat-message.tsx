@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Languages, FileText, Music4, Loader2, Quote, Volume2, Pause, Play } from 'lucide-react';
+import { Sparkles, Languages, FileText, Loader2, Quote, Volume2, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -21,13 +21,15 @@ type Message = {
   transcription?: string;
   isTranscribing?: boolean;
   audioDataUri?: string;
+  summary?: string;
+  isSummarizing?: boolean;
 };
 
 type ChatMessageProps = {
   message: Message;
   currentUser: 'teacher' | 'parent';
-  onTranslate?: (id: string) => void;
   onSimplify?: (id: string) => void;
+  onSummarize?: (id: string) => void;
 };
 
 const AiActionButton = ({ isLoading, onClick, children }: { isLoading?: boolean; onClick: () => void; children: React.ReactNode }) => (
@@ -63,7 +65,9 @@ const VoiceNotePlayer = ({ audioDataUri, isSentByCurrentUser }: { audioDataUri: 
         const audio = audioRef.current;
         if (audio) {
             const setAudioData = () => {
-                setDuration(audio.duration);
+                if (isFinite(audio.duration)) {
+                  setDuration(audio.duration);
+                }
                 setCurrentTime(audio.currentTime);
             }
 
@@ -71,6 +75,11 @@ const VoiceNotePlayer = ({ audioDataUri, isSentByCurrentUser }: { audioDataUri: 
 
             audio.addEventListener('loadeddata', setAudioData);
             audio.addEventListener('timeupdate', setAudioTime);
+
+            // If audio is already loaded
+            if (audio.readyState >= 2) {
+                setAudioData();
+            }
 
             return () => {
                 audio.removeEventListener('loadeddata', setAudioData);
@@ -105,10 +114,10 @@ const VoiceNotePlayer = ({ audioDataUri, isSentByCurrentUser }: { audioDataUri: 
         }
     };
 
-    const timeClass = isSentByCurrentUser ? 'text-primary-foreground/80' : 'text-muted-foreground';
+    const timeClass = isSentByCurrentUser ? 'text-primary-foreground/80' : 'text-card-foreground/90';
 
     return (
-        <div className="flex items-center gap-3 p-3 bg-card/80 rounded-md">
+        <div className="flex items-center gap-3 p-3 bg-card/5 rounded-md">
             <audio ref={audioRef} src={audioDataUri} preload="metadata" onEnded={() => setIsPlaying(false)} />
             <Button variant="ghost" size="icon" onClick={togglePlayPause} className="w-8 h-8 rounded-full">
                 {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -143,9 +152,23 @@ const VoiceNotePlayer = ({ audioDataUri, isSentByCurrentUser }: { audioDataUri: 
 const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, isSentByCurrentUser: boolean }) => {
     if (message.type === 'document') {
         return (
-            <div className="flex items-center gap-2 p-3 bg-secondary rounded-md">
-                <FileText className="w-6 h-6 text-primary" />
-                <span className="font-medium font-body text-card-foreground">{message.content}</span>
+            <div>
+                <div className="flex items-center gap-2 p-3 bg-secondary rounded-md">
+                    <FileText className="w-6 h-6 text-primary" />
+                    <span className="font-medium font-body text-card-foreground">{message.content}</span>
+                </div>
+                 {(message.isSummarizing || message.summary) && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                        <p className={cn("text-xs font-bold mb-1 font-headline", 'text-primary')}>Summary</p>
+                        {message.isSummarizing && !message.summary && (
+                            <div className={cn("flex items-center gap-2", 'text-card-foreground/90' )}>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="text-sm">Summarizing...</span>
+                            </div>
+                        )}
+                        {message.summary && <p className={cn("font-body text-sm whitespace-pre-wrap", 'text-card-foreground/90')}>{message.summary}</p>}
+                    </div>
+                )}
             </div>
         );
     }
@@ -207,10 +230,10 @@ const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, is
     );
 }
 
-export default function ChatMessage({ message, currentUser, onTranslate, onSimplify }: ChatMessageProps) {
+export default function ChatMessage({ message, currentUser, onSimplify, onSummarize }: ChatMessageProps) {
   const isSentByCurrentUser = message.sender === currentUser;
 
-  const showAIActions = !isSentByCurrentUser && message.type === 'text';
+  const showAIActions = !isSentByCurrentUser && (message.type === 'text' || message.type === 'document');
 
   return (
     <div className={cn('flex items-end gap-2', isSentByCurrentUser ? 'justify-end' : 'justify-start')}>
@@ -232,16 +255,16 @@ export default function ChatMessage({ message, currentUser, onTranslate, onSimpl
                 </span>
                 {showAIActions && (
                     <div className="flex items-center gap-2">
-                        {onSimplify && (
+                        {message.type === 'text' && onSimplify && (
                             <AiActionButton isLoading={message.isSimplifying} onClick={() => onSimplify(message.id)}>
                                 <Sparkles className="w-3 h-3" />
                                 <span>Simplify</span>
                             </AiActionButton>
                         )}
-                        {onTranslate && (
-                            <AiActionButton isLoading={message.isTranslating} onClick={() => onTranslate(message.id)}>
-                                <Languages className="w-3 h-3" />
-                                <span>Translate</span>
+                        {message.type === 'document' && onSummarize && (
+                             <AiActionButton isLoading={message.isSummarizing} onClick={() => onSummarize(message.id)}>
+                                <Sparkles className="w-3 h-3" />
+                                <span>Summarize</span>
                             </AiActionButton>
                         )}
                     </div>

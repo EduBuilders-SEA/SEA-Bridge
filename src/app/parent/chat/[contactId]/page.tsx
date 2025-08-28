@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import ChatPageLayout from '@/components/chat/chat-page-layout';
 import MessageInput from '@/components/chat/message-input';
 import ChatMessage from '@/components/chat/chat-message';
-import { conversation, type Message } from '@/lib/data';
+import { conversation, documentContent, type Message } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast"
 import { notFound, useSearchParams, useRouter } from 'next/navigation';
 import { contacts } from '@/lib/contacts';
@@ -16,6 +16,7 @@ import { summarizeConversation, type SummarizeConversationOutput } from '@/ai/fl
 import { translateMessage } from '@/ai/flows/translate-message';
 import { simplifyMessage } from '@/ai/flows/simplify-message';
 import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
+import { summarizeDocument } from '@/ai/flows/summarize-document';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
 
 
@@ -27,6 +28,8 @@ type DisplayMessage = Message & {
   transcription?: string;
   isTranscribing?: boolean;
   audioDataUri?: string;
+  summary?: string;
+  isSummarizing?: boolean;
 };
 
 function ChatSkeleton() {
@@ -225,6 +228,33 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
     }
   };
 
+  const handleSummarize = async (messageId: string) => {
+    const message = messages.find(m => m.id === messageId);
+    if (!message || message.summary) return;
+
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: true } : m));
+    try {
+      // In a real app, you would fetch the document content. Here, we use mock data.
+      const result = await summarizeDocument({ documentContent: documentContent });
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId
+            ? { ...m, summary: result.summary, isSummarizing: false }
+            : m
+        )
+      );
+    } catch (error) {
+       console.error('Failed to summarize document:', error);
+       toast({
+         variant: 'destructive',
+         title: 'Error',
+         description: 'Could not summarize the document. Please try again.',
+       });
+       setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: false } : m));
+    }
+  };
+
+
   const onTabChange = async (tab: string) => {
     if (tab === 'summary' && !summary && !isGeneratingSummary) {
       setIsGeneratingSummary(true);
@@ -278,6 +308,7 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
                 message={msg}
                 currentUser="parent"
                 onSimplify={handleSimplify}
+                onSummarize={handleSummarize}
               />
             ))}
           </div>
