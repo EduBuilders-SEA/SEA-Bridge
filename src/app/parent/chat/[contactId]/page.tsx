@@ -9,12 +9,13 @@ import { conversation, type Message } from '@/lib/data';
 import { useToast } from "@/hooks/use-toast"
 import { notFound, useSearchParams, useRouter } from 'next/navigation';
 import { contacts } from '@/lib/contacts';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ProgressSummaryCard } from '@/components/chat/progress-summary-card';
+import { Card, CardContent } from '@/components/ui/card';
 
 type DisplayMessage = Message & {
   translatedContent?: string;
-  summarizedContent?: string;
   isTranslating?: boolean;
-  isSummarizing?: boolean;
 };
 
 export default function ParentChatPage({ params: { contactId } }: { params: { contactId: string } }) {
@@ -79,20 +80,6 @@ export default function ParentChatPage({ params: { contactId } }: { params: { co
     }, 1000);
   };
 
-  const handleSummarize = async (messageId: string) => {
-    // Placeholder logic, real implementation removed
-    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: true } : m));
-     console.log(`Summarizing message ${messageId}`);
-    setTimeout(() => {
-        const summaryPoints = [
-            "Your son, Wei, is doing well in class.",
-            "A permission slip for a field trip will be sent home.",
-            "The permission slip needs to be returned by Friday."
-        ].map(point => `• ${point}`).join('\n');
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: false, summarizedContent: summaryPoints } : m));
-    }, 1000);
-  };
-
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
@@ -106,20 +93,36 @@ export default function ParentChatPage({ params: { contactId } }: { params: { co
 
   return (
     <ChatPageLayout title={layoutTitle} user={layoutUser}>
-      <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6" ref={scrollAreaRef}>
-        {messages.map((msg) => (
-          <ChatMessage
-            key={msg.id}
-            message={msg}
-            currentUser="parent"
-            onTranslate={handleTranslate}
-            onSummarize={handleSummarize}
-          />
-        ))}
-      </div>
-      <div className="p-4 md:p-6 pt-2 border-t bg-background">
-        <MessageInput onSendMessage={handleSendMessage} placeholder={`Reply in ${parentLanguage}...`} />
-      </div>
+      <Tabs defaultValue="chat" className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex justify-center p-2 border-b">
+          <TabsList>
+            <TabsTrigger value="chat">Chat</TabsTrigger>
+            <TabsTrigger value="summary">Summary</TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6" ref={scrollAreaRef}>
+            {messages.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                currentUser="parent"
+                onTranslate={handleTranslate}
+              />
+            ))}
+          </div>
+          <div className="p-4 md:p-6 pt-2 border-t bg-background">
+            <MessageInput onSendMessage={handleSendMessage} placeholder={`Reply in ${parentLanguage}...`} />
+          </div>
+        </TabsContent>
+         <TabsContent value="summary" className="flex-1 overflow-y-auto p-4 md:p-6">
+            <div className="flex justify-end mb-4">
+                 {/* Placeholder for Date Range Picker */}
+                <Card className="p-2"><CardContent className="p-0">Date Range Picker Coming Soon</CardContent></Card>
+            </div>
+            <ProgressSummaryCard studentName={contact.childName} />
+        </TabsContent>
+      </Tabs>
     </ChatPageLayout>
   );
 }

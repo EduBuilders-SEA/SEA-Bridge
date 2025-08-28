@@ -13,16 +13,13 @@ type Message = {
   type: 'text' | 'document' | 'voice';
   originalLanguage?: string;
   translatedContent?: string;
-  summarizedContent?: string;
   isTranslating?: boolean;
-  isSummarizing?: boolean;
 };
 
 type ChatMessageProps = {
   message: Message;
   currentUser: 'teacher' | 'parent';
   onTranslate?: (id: string) => void;
-  onSummarize?: (id: string) => void;
 };
 
 const AiActionButton = ({ isLoading, onClick, children }: { isLoading?: boolean; onClick: () => void; children: React.ReactNode }) => (
@@ -69,20 +66,14 @@ const MessageContent = ({ message }: { message: Message }) => {
                     <p className="font-body text-sm text-primary/90">{message.translatedContent}</p>
                 </div>
             )}
-            {message.summarizedContent && (
-                <div className="mt-3 pt-3 border-t border-border/50">
-                    <p className="text-xs font-bold text-primary mb-1 font-headline">Summary</p>
-                    <p className="font-body text-sm text-primary/90">{message.summarizedContent}</p>
-                </div>
-            )}
         </>
     );
 }
 
-export default function ChatMessage({ message, currentUser, onTranslate, onSummarize }: ChatMessageProps) {
+export default function ChatMessage({ message, currentUser, onTranslate }: ChatMessageProps) {
   const isSentByCurrentUser = message.sender === currentUser;
 
-  const showAiActions = !isSentByCurrentUser && message.type === 'text' && onTranslate && onSummarize;
+  const showTranslateAction = !isSentByCurrentUser && message.type === 'text' && onTranslate;
 
   return (
     <div className={cn('flex items-end gap-2', isSentByCurrentUser ? 'justify-end' : 'justify-start')}>
@@ -102,15 +93,11 @@ export default function ChatMessage({ message, currentUser, onTranslate, onSumma
                 )}>
                     {message.timestamp} {message.originalLanguage && `· ${message.originalLanguage}`}
                 </span>
-                {showAiActions && (
+                {showTranslateAction && (
                     <div className="flex items-center gap-2">
                         <AiActionButton isLoading={message.isTranslating} onClick={() => onTranslate(message.id)}>
                             <Languages className="w-3 h-3" />
                             <span>Translate</span>
-                        </AiActionButton>
-                        <AiActionButton isLoading={message.isSummarizing} onClick={() => onSummarize(message.id)}>
-                            <Sparkles className="w-3 h-3" />
-                            <span>Summarize</span>
                         </AiActionButton>
                     </div>
                 )}
