@@ -153,7 +153,7 @@ const VoiceNotePlayer = ({ audioDataUri, isSentByCurrentUser }: { audioDataUri: 
 
 const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, isSentByCurrentUser: boolean }) => {
     if (message.type === 'document') {
-        const isImage = message.content.match(/\.(jpeg|jpg|gif|png)$/) != null;
+        const isImage = message.content.match(/\.(jpeg|jpg|gif|png)$/i) != null;
         
         return (
             <div>
@@ -268,7 +268,7 @@ export default function ChatMessage({ message, currentUser, onSimplify, onSummar
   const isSentByCurrentUser = message.sender === currentUser;
 
   const showAIActions = !isSentByCurrentUser && (message.type === 'text' || message.type === 'document');
-  const cardPadding = message.type === 'document' && message.content.match(/\.(jpeg|jpg|gif|png)$/) ? 'p-1' : 'p-3';
+  const cardPadding = message.type === 'document' && message.content.match(/\.(jpeg|jpg|gif|png)$/i) ? 'p-1' : 'p-3';
 
 
   return (
