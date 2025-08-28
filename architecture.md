@@ -1,8 +1,8 @@
-# LinguaLearn Bridge - Decoupled FastAPI Architecture
+# LinguaLearn Bridge - Pragmatic Hackathon Architecture
 
-This document outlines the final technical architecture for the LinguaLearn Bridge application. This plan leverages a decoupled approach with a Python/FastAPI backend and a Next.js frontend, designed to allow for clear separation of concerns and to leverage the strengths of each framework.
+This document outlines a pragmatic technical architecture for the LinguaLearn Bridge application, designed for rapid development within a hackathon timeline. The primary goal is to maximize developer velocity to focus on the core user experience and the innovative use of the SEA-LION LLM.
 
-**Core Philosophy:** Separate the AI/business logic (Python) from the user interface (TypeScript/React) to enable parallel development and utilize the best tools for each job.
+**Core Philosophy:** Use a tightly integrated, modern stack that minimizes infrastructure setup and maximizes feature development speed. A unified Next.js + Genkit stack is the fastest path to a winning prototype.
 
 ```mermaid
 graph TD
@@ -10,90 +10,71 @@ graph TD
         A[User's Browser]
     end
 
-    subgraph Vercel
-        B[Next.js Frontend @ Vercel]
+    subgraph Firebase App Hosting / Vercel
+        B[Next.js Frontend]
+        C[Genkit AI Flows (as Server Actions)]
         B -- Renders & Serves --> A
-    end
-    
-    subgraph Backend Services
-      subgraph API
-        C[FastAPI Application]
-      end
-
-      subgraph AI/ML
-          D[SEA-LION Model Endpoint]
-          E[GCP Speech-to-Text / Other AI Service]
-      end
+        A -- Calls AI Flows --> C
     end
 
     subgraph External Services
         subgraph Supabase
-            F[Supabase Auth]
-            G[Supabase Postgres DB]
-            H[Supabase Realtime]
-            I[Supabase Storage]
+            D[Supabase Auth]
+            E[Supabase Realtime]
+            F[Supabase Postgres DB]
+            G[Supabase Storage]
         end
+
+        subgraph AI
+            H[SEA-LION Model Endpoint]
+        end
+
+        C -- Authenticates via --> D
+        C -- Queries/Mutates DB --> F
+        C -- Publishes to & Listens via --> E
+        A -- Subscribes for Live Chat --> E
+        C -- Generates Signed URLs for --> G
+        A -- Uploads/Downloads Files --> G
+        C -- Invokes AI Model via HTTPS --> H
     end
-
-    A -- API Calls --> C
-    
-    C -- Authenticates via --> F
-    C -- Queries/Mutates DB --> G
-    C -- Publishes to & Listens via --> H
-    A -- Subscribes for Live Chat via --> H
-    
-    C -- Generates Signed URLs for --> I
-    A -- Uploads/Downloads Directly --> I
-
-    C -- Invokes for Translation --> D
-    C -- Invokes for Transcription --> E
-
 
     %% Flow Descriptions
     classDef user fill:#E3F2FD,stroke:#64B5F6,stroke-width:2px;
     classDef vercel fill:#f0f0f0,stroke:#000,stroke-width:2px;
-    classDef backend fill:#EFEBE9,stroke:#795548,stroke-width:2px;
     classDef services fill:#E8F5E9,stroke:#4CAF50,stroke-width:2px;
 
     class A user;
-    class B vercel;
-    class C,D,E backend;
-    class F,G,H,I services;
+    class B,C vercel;
+    class D,E,F,G,H services;
 
 ```
 
 ### Component Breakdown:
 
-1.  **Frontend (Vercel):**
-    *   **Framework:** **Next.js with App Router**.
-    *   **Responsibilities:** Building and rendering React components, managing UI state, and making authenticated API calls to the FastAPI backend.
-    *   **UI/Forms:** shadcn/ui, Tailwind CSS, React Hook Form, and Zod for client-side validation.
-    *   **API Client:** A typed API client (`src/lib/api/`) will be created to interact with the backend, providing type safety between the frontend and backend.
+1.  **Unified Frontend & Backend (Next.js + Genkit):**
+    *   **Framework:** **Next.js with App Router**. This will handle both the frontend UI and the backend logic.
+    *   **AI Logic:** **Genkit Flows** written in TypeScript. These flows act as our backend, are marked with the `'use server'` directive, and can be called directly and securely from our React components. This eliminates the need for a separate API layer.
+    *   **UI:** Built with **shadcn/ui** and **Tailwind CSS**.
+    *   **Forms:** **React Hook Form** for managing form state and **Zod** for validation.
 
-2.  **Backend (FastAPI):**
-    *   **Framework:** **FastAPI** (Python).
-    *   **Responsibilities:** Exposing RESTful API endpoints for all business logic, including user authentication, database operations, and orchestrating calls to AI services.
-    *   **AI Orchestration:** Can use **LangChain** or a simple service client (`sea_lion_client.py`) to interact with AI models.
-
-3.  **Authentication (Supabase):**
+2.  **Authentication (Supabase):**
     *   **Service:** **Supabase Auth.**
-    *   **Flow:** The Next.js frontend initiates sign-in/sign-up. The received JWT is sent to the FastAPI backend with every request. The backend validates the token using Supabase's public key to secure its endpoints.
+    *   **Usage:** Manages user sign-up, sign-in, and JWT issuance. The Genkit flows will validate tokens on each call.
 
-4.  **Database (Supabase):**
+3.  **Database (Supabase):**
     *   **Service:** **Supabase Postgres.**
-    *   **Access:** The FastAPI backend will handle all database reads and writes.
+    *   **Client:** The **Supabase.js client** will be used directly in Genkit flows for all database operations. This is simpler and faster than adding a separate ORM like Drizzle for a hackathon.
 
-5.  **Real-time Chat (Supabase):**
+4.  **Real-time Chat (Supabase):**
     *   **Service:** **Supabase Realtime.**
-    *   **Flow:** The FastAPI backend, after persisting a message to the database, can broadcast an event using the Supabase Realtime client. Alternatively, the Next.js frontend can subscribe directly to database changes, simplifying the backend logic.
+    *   **Usage:** Provides real-time capabilities out-of-the-box. The frontend will subscribe directly to database changes, and the Genkit flows will write to the database, triggering real-time updates.
 
-6.  **AI/ML (Innovation Hotspot):**
-    *   **Primary AI Service:** **SEA-Lion Model Endpoint**.
-    *   **Point of Innovation:** The **translation and transcription-translation** flows are the prime candidates for showcasing the SEA-Lion model's unique capabilities. Use it here to demonstrate superior handling of Southeast Asian languages, dialects, and cultural nuances compared to generic models.
-    *   **Other AI Services:** Standard models (e.g., Gemini, GCP Speech-to-Text) can be used for less critical tasks like simplification or summarization where SEA-Lion's specialization is not required.
+5.  **AI/ML (Innovation Hotspot):**
+    *   **Primary AI Service:** **SEA-Lion Model Endpoint.**
+    *   **Point of Innovation:** The **`transcribe-and-translate` and `translate-message`** flows are the prime candidates for showcasing the SEA-Lion model's unique capabilities. Use it here to demonstrate superior handling of Southeast Asian languages and dialects compared to generic models. Genkit can easily make `fetch` requests to any HTTPS endpoint.
 
-7.  **File Storage (Supabase):**
+6.  **File Storage (Supabase):**
     *   **Service:** **Supabase Storage.**
-    *   **Flow:** To upload a file, the frontend will request a secure, temporary upload link from the FastAPI backend. The frontend then uses this URL to upload the file directly to Supabase Storage.
+    *   **Usage:** Used to store user-uploaded files like voice notes and documents.
 
-This decoupled architecture provides a robust and scalable foundation for the LinguaLearn Bridge application.
+This integrated architecture is the most direct path to building a feature-rich, impressive application within the tight constraints of a hackathon.
