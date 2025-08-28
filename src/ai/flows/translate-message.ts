@@ -10,13 +10,13 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const TranslateMessageInputSchema = z.object({
+const TranslateMessageInputSchema = z.object({
   content: z.string().describe('The text content of the message to be translated.'),
   targetLanguage: z.string().describe('The language to translate the message into (e.g., "Vietnamese", "English").'),
 });
 export type TranslateMessageInput = z.infer<typeof TranslateMessageInputSchema>;
 
-export const TranslateMessageOutputSchema = z.object({
+const TranslateMessageOutputSchema = z.object({
   translation: z.string().describe('The translated text.'),
 });
 export type TranslateMessageOutput = z.infer<typeof TranslateMessageOutputSchema>;
