@@ -1,6 +1,8 @@
-# LinguaLearn Bridge - Final Hackathon Architecture
+# LinguaLearn Bridge - Python-Centric AWS Architecture
 
-This architecture is designed for a team new to Next.js, prioritizing a clear separation between frontend and backend concerns to maximize development speed and reduce the learning curve. It leverages the strengths of Vercel for the frontend, AWS for scalable AI and serverless logic, and Supabase for its rapid "backend-as-a-service" features.
+This document outlines the final, pragmatic technical architecture for the LinguaLearn Bridge application. This plan is designed for a team that prefers **Python** for backend development and needs to leverage the **AWS ecosystem** for a hackathon.
+
+**Core Philosophy:** Decouple the frontend and backend to allow the team to work in parallel using their preferred technologies. The frontend team will focus on Next.js for the UI, while the backend team will build with Python on AWS Lambda.
 
 ```mermaid
 graph TD
@@ -8,73 +10,96 @@ graph TD
         A[User's Browser]
     end
 
-    subgraph Frontend @ Vercel
-        B[Next.js React App]
+    subgraph Vercel
+        B[Next.js Frontend @ Vercel]
         B -- Renders & Serves --> A
     end
 
-    subgraph Backend @ AWS
-        C[Amazon API Gateway]
-        D[AWS Lambda Functions (Node.js)]
-        E[Amazon Bedrock]
-        F[SEA-Lion Custom Model]
+    subgraph AWS Cloud
+        subgraph API
+            C[Amazon API Gateway]
+        end
+
+        subgraph Compute
+            D[AWS Lambda Functions (Python)]
+        end
+
+        subgraph AI/ML
+            E[Amazon Bedrock]
+            F[SEA-Lion Custom Model]
+        end
+
+        subgraph Database
+            G[Amazon RDS - PostgreSQL]
+        end
+
+        subgraph Real-time Messaging
+            H[AWS AppSync - WebSockets]
+        end
+
+        subgraph Storage
+            I[Amazon S3]
+        end
+
+        subgraph Authentication
+            J[Amazon Cognito]
+        end
 
         A -- API Calls --> C
         C -- Triggers --> D
+        D -- Authenticates via --> J
         D -- Invokes AI Model via --> E
         E -- Uses --> F
+        D -- Queries/Mutates --> G
+        D -- Publishes Messages to --> H
+        A -- Subscribes for Live Chat via --> H
+        D -- Generates Signed URLs for --> I
+        A -- Uploads/Downloads Directly --> I
     end
-
-    subgraph Data & Services @ Supabase
-        G[Supabase Auth]
-        H[Supabase Postgres DB]
-        I[Supabase Realtime]
-        J[Supabase Storage]
-    end
-
-    %% Connections
-    A -- Authenticates via --> G
-    A -- Subscribes for Live Chat --> I
-    A -- Uploads/Downloads Files --> J
-    D -- Queries/Mutates DB --> H
-    D -- Publishes Messages to --> I
-
 
     %% Flow Descriptions
     classDef user fill:#E3F2FD,stroke:#64B5F6,stroke-width:2px;
     classDef vercel fill:#f0f0f0,stroke:#000,stroke-width:2px;
-    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px;
-    classDef supabase fill:#E8F5E9,stroke:#3ECF8E,stroke-width:2px;
+    classDef aws fill:#fff5e6,stroke:#FF9900,stroke-width:2px;
 
     class A user;
     class B vercel;
-    class C,D,E,F aws;
-    class G,H,I,J supabase;
+    class C,D,E,F,G,H,I,J aws;
+
 ```
 
 ### Component Breakdown:
 
 1.  **Frontend (Vercel):**
-    *   **Framework:** Next.js, used primarily for its powerful React-based UI rendering.
-    *   **Responsibilities:** Renders all UI components, manages client-side state, handles user interactions, and makes authenticated API calls to the AWS backend.
+    *   **Framework:** **Next.js**. Used *only* for its UI rendering capabilities.
+    *   **Responsibilities:** Building and rendering React components, managing UI state, and making authenticated API calls to the AWS backend via API Gateway.
+    *   **UI Library:** shadcn/ui and Tailwind CSS.
 
 2.  **Backend API (AWS Lambda + API Gateway):**
-    *   **API Gateway:** Provides simple, scalable HTTPS endpoints for the frontend to call (e.g., `/translate`, `/sendMessage`).
-    *   **Lambda Functions:** Contain the backend logic. Each function is a small, independent Node.js script. For example, a `sendMessage` function would receive data from the API Gateway, process it, and save it to the Supabase database.
-    *   **Advantage:** This decouples the backend entirely, making it easier for new developers to work on without interfering with the Next.js frontend.
+    *   **Language:** **Python**.
+    *   **Services:**
+        *   **AWS Lambda:** All backend logic (sending messages, translating text, etc.) will be written as small, independent Python functions.
+        *   **Amazon API Gateway:** Provides RESTful HTTPS endpoints that trigger the corresponding Lambda functions. This is the secure front door to our backend.
 
-3.  **Authentication (Supabase Auth):**
-    *   The Next.js client will use the Supabase JS library to handle user sign-up and sign-in.
-    *   When making an API call to AWS, the client will include the Supabase JWT in the `Authorization` header. The Lambda function can validate this token to secure the endpoint.
+3.  **Authentication (AWS):**
+    *   **Service:** **Amazon Cognito.**
+    *   **Flow:** The Next.js frontend will use a library like AWS Amplify to handle user sign-up/sign-in. This will provide JWTs (tokens) that are sent with every API call. API Gateway and Lambda will validate these tokens to secure the backend.
 
-4.  **Database & Real-time (Supabase):**
-    *   **Postgres DB:** Your AWS Lambda functions will use a Postgres client library to connect to the Supabase database to store user data, messages, etc.
-    *   **Realtime:** The frontend client will subscribe directly to Supabase Realtime to listen for database changes (e.g., new messages) and update the UI live.
+4.  **Database (AWS):**
+    *   **Service:** **Amazon RDS for PostgreSQL.**
+    *   **Access:** The Python Lambda functions will connect to the RDS instance to store and retrieve data for users, messages, and contacts.
 
-5.  **AI/ML (Amazon Bedrock):**
-    *   Your AWS Lambda functions will use the AWS SDK to invoke your custom **SEA-Lion model** hosted in Bedrock for all translation and summarization tasks. This satisfies the core requirement of using the sponsor's AI service.
+5.  **AI/ML (AWS):**
+    *   **Service:** **Amazon Bedrock.**
+    *   **Model:** The **SEA-Lion model** will be imported and hosted in Bedrock.
+    *   **Usage:** Python Lambda functions will use the `boto3` (AWS SDK for Python) to call the Bedrock API, sending text for translation or summarization.
 
-6.  **Storage (Supabase Storage):**
-    *   The frontend client will communicate with Supabase directly to get secure URLs for uploading and downloading files. This is simpler than routing through the AWS backend.
+6.  **Real-time Chat (AWS):**
+    *   **Service:** **AWS AppSync.**
+    *   **Usage:** AppSync is a managed GraphQL service that can also handle real-time data over WebSockets. When a new message is saved to the database, a Lambda function can publish a mutation to AppSync, which will then push the new message to all subscribed chat clients.
 
-This is our stable plan. It's the best balance of power, scalability, and, most importantly, team productivity for your hackathon.
+7.  **File Storage (AWS):**
+    *   **Service:** **Amazon S3.**
+    *   **Flow:** To upload a file, the frontend will first ask the Python backend for a secure, temporary upload link (an S3 pre-signed URL). The frontend then uses this URL to upload the file directly to S3. This is secure and efficient.
+
+This architecture is robust, fully leverages the AWS ecosystem, and most importantly, is tailored to your team's existing Python skills.
