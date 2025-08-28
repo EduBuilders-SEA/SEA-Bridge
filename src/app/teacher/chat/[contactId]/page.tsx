@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -10,7 +11,7 @@ import { contacts } from '@/lib/contacts';
 import { notFound, useRouter } from 'next/navigation';
 
 
-export default function TeacherChatPage({ params }: { params: { contactId: string } }) {
+export default function TeacherChatPage({ params: { contactId } }: { params: { contactId: string } }) {
   const [messages, setMessages] = useState<Message[]>(conversation);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -31,7 +32,7 @@ export default function TeacherChatPage({ params }: { params: { contactId: strin
     }
   }, [router]);
 
-  const contact = contacts.find(c => c.id === params.contactId && c.role === 'parent');
+  const contact = contacts.find(c => c.id === contactId && c.role === 'parent');
   
   if (!contact) {
     notFound();

@@ -17,7 +17,7 @@ type DisplayMessage = Message & {
   isSummarizing?: boolean;
 };
 
-export default function ParentChatPage({ params }: { params: { contactId: string } }) {
+export default function ParentChatPage({ params: { contactId } }: { params: { contactId: string } }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const lang = searchParams.get('lang');
@@ -42,7 +42,7 @@ export default function ParentChatPage({ params }: { params: { contactId: string
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast()
 
-  const contact = contacts.find(c => c.id === params.contactId && c.role === 'teacher');
+  const contact = contacts.find(c => c.id === contactId && c.role === 'teacher');
   
   if (!contact) {
     notFound();
