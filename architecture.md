@@ -35,8 +35,9 @@ graph TD
         C -- Invokes AI Model via HTTPS --> H
 
         I -- Authenticates via --> D
-        I -- Queries/Mutates DB --> F
-        I -- Publishes to --> E
+        I -- 1. Writes message to --> F
+        F -- 2. Triggers event --> E
+        E -- 3. Pushes update to --> A
         A -- Subscribes for Live Chat --> E
         I -- Generates Signed URLs for --> G
         A -- Uploads/Downloads Files --> G
