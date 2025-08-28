@@ -18,6 +18,7 @@ type Message = {
   isSimplifying?: boolean;
   transcription?: string;
   isTranscribing?: boolean;
+  audioDataUri?: string;
 };
 
 type ChatMessageProps = {
@@ -48,37 +49,10 @@ const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, is
             </div>
         );
     }
-    if (message.type === 'voice') {
+    if (message.type === 'voice' && message.audioDataUri) {
         return (
              <div>
-                <div className={cn(
-                  "flex items-center gap-3 p-2 rounded-full w-fit",
-                  isSentByCurrentUser ? 'bg-primary-foreground/20' : 'bg-secondary'
-                )}>
-                    <div className={cn(
-                        "rounded-full p-2",
-                        isSentByCurrentUser ? 'bg-primary-foreground text-primary' : 'bg-primary text-primary-foreground'
-                    )}>
-                        <Music4 className="w-4 h-4" />
-                    </div>
-                    <div className={cn(
-                        "w-40 h-1 rounded-full relative",
-                        isSentByCurrentUser ? 'bg-primary-foreground/30' : 'bg-muted-foreground/30'
-                    )}>
-                        <div className={cn(
-                          "absolute top-0 left-0 h-1 w-2/3 rounded-full",
-                          isSentByCurrentUser ? 'bg-primary-foreground' : 'bg-primary'
-                        )}></div>
-                        <div className={cn(
-                          "absolute top-1/2 -right-1 h-3 w-3 rounded-full -translate-y-1/2",
-                          isSentByCurrentUser ? 'bg-primary-foreground' : 'bg-primary'
-                        )}></div>
-                    </div>
-                    <span className={cn(
-                        "text-xs font-mono",
-                        isSentByCurrentUser ? 'text-primary-foreground' : 'text-muted-foreground'
-                    )}>0:12</span>
-                </div>
+                <audio src={message.audioDataUri} controls className="w-full h-10" />
                 {message.isTranscribing && (
                     <div className="mt-3 pt-3 border-t border-border/50">
                          <div className={cn("flex items-center gap-2", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90' )}>
@@ -90,19 +64,19 @@ const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, is
                 {message.transcription && (
                      <div className="mt-3 pt-3 border-t border-border/50">
                         <p className={cn("text-xs font-bold mb-1 font-headline flex items-center gap-1.5", isSentByCurrentUser ? 'text-primary-foreground' : 'text-primary' )}><Quote className="w-4 h-4" /> Transcription</p>
-                        <p className={cn("font-body text-sm italic", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90')}>"{message.transcription}"</p>
+                        <p className={cn("font-body text-sm italic", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-card-foreground/90')}>"{message.transcription}"</p>
                     </div>
                 )}
                  {(message.translatedContent) && (
                     <div className="mt-3 pt-3 border-t border-border/50">
                         <p className={cn("text-xs font-bold mb-1 font-headline", isSentByCurrentUser ? 'text-primary-foreground' : 'text-primary' )}>Translation</p>
                         {message.isTranslating && !message.translatedContent && (
-                            <div className={cn("flex items-center gap-2", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90' )}>
+                            <div className={cn("flex items-center gap-2", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-card-foreground/90' )}>
                             <Loader2 className="w-4 h-4 animate-spin" />
                             <span className="text-sm">Translating...</span>
                             </div>
                         )}
-                        {message.translatedContent && <p className={cn("font-body text-sm", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90')}>{message.translatedContent}</p>}
+                        {message.translatedContent && <p className={cn("font-body text-sm", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-card-foreground/90')}>{message.translatedContent}</p>}
                     </div>
                 )}
              </div>
@@ -115,18 +89,18 @@ const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, is
                 <div className="mt-3 pt-3 border-t border-border/50">
                     <p className={cn("text-xs font-bold mb-1 font-headline", isSentByCurrentUser ? 'text-primary-foreground' : 'text-primary')}>Translation</p>
                     {message.isTranslating && !message.translatedContent && (
-                        <div className={cn("flex items-center gap-2", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90' )}>
+                        <div className={cn("flex items-center gap-2", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-card-foreground/90' )}>
                            <Loader2 className="w-4 h-4 animate-spin" />
                            <span className="text-sm">Translating...</span>
                         </div>
                     )}
-                    {message.translatedContent && <p className={cn("font-body text-sm", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90')}>{message.translatedContent}</p>}
+                    {message.translatedContent && <p className={cn("font-body text-sm", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-card-foreground/90')}>{message.translatedContent}</p>}
                 </div>
             )}
              {message.simplifiedContent && (
                 <div className="mt-3 pt-3 border-t border-border/50">
                     <p className={cn("text-xs font-bold mb-1 font-headline", isSentByCurrentUser ? 'text-primary-foreground' : 'text-primary')}>Simplified Version</p>
-                    <p className={cn("font-body text-sm", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-primary/90')}>{message.simplifiedContent}</p>
+                    <p className={cn("font-body text-sm", isSentByCurrentUser ? 'text-primary-foreground/90' : 'text-card-foreground/90')}>{message.simplifiedContent}</p>
                 </div>
             )}
         </>

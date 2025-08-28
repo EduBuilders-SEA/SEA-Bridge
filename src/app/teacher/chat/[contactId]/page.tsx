@@ -23,6 +23,7 @@ type DisplayMessage = Message & {
   isSimplifying?: boolean;
   transcription?: string;
   isTranscribing?: boolean;
+  audioDataUri?: string;
 };
 
 export default function TeacherChatPage({ params: { contactId } }: { params: { contactId: string } }) {
@@ -86,6 +87,7 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
       type: 'voice',
       originalLanguage: 'English',
       isTranscribing: true,
+      audioDataUri,
     };
     addMessage(newMessage);
 

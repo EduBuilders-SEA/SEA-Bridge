@@ -26,6 +26,7 @@ type DisplayMessage = Message & {
   isSimplifying?: boolean;
   transcription?: string;
   isTranscribing?: boolean;
+  audioDataUri?: string;
 };
 
 function ChatSkeleton() {
@@ -166,6 +167,7 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
       type: 'voice',
       originalLanguage: parentLanguage,
       isTranscribing: true,
+      audioDataUri,
     };
     addMessage(newMessage);
 
