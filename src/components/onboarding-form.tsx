@@ -62,26 +62,25 @@ export default function OnboardingForm() {
     setIsSubmitting(true);
     setFormData(values);
 
-    // const { error } = await supabase.auth.signInWithOtp({
-    //   phone: values.phoneNumber,
-    // });
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: values.phoneNumber,
+    });
 
-    // if (error) {
-    //   toast({
-    //     variant: 'destructive',
-    //     title: 'Error sending OTP',
-    //     description: error.message,
-    //   });
-    //   setIsSubmitting(false);
-    // } else {
-    //   toast({
-    //     title: 'OTP Sent',
-    //     description: 'Check your phone for the verification code.',
-    //   });
-    //   setStep(2);
-    //   setIsSubmitting(false);
-    // }
-    setStep(2)
+    if (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error sending OTP',
+        description: error.message,
+      });
+      setIsSubmitting(false);
+    } else {
+      toast({
+        title: 'OTP Sent',
+        description: 'Check your phone for the verification code.',
+      });
+      setStep(2);
+      setIsSubmitting(false);
+    }
   }
 
   async function onOtpSubmit(values: z.infer<typeof otpFormSchema>) {
@@ -93,41 +92,37 @@ export default function OnboardingForm() {
       type: 'sms',
     });
 
-    // if (error) {
-    //   toast({
-    //     variant: 'destructive',
-    //     title: 'Invalid OTP',
-    //     description: error.message,
-    //   });
-    //   setIsSubmitting(false);
-    // } else {
-    //   // User is signed in. Now, upsert their profile.
-    //   if (data.session) {
-    //      const { error: profileError } = await supabase
-    //         .from('profiles')
-    //         .upsert({ id: data.session.user.id, role: role, phone: formData.phoneNumber, full_name: formData.name }, { onConflict: 'id' });
+    if (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid OTP',
+        description: error.message,
+      });
+      setIsSubmitting(false);
+    } else {
+      // User is signed in. Now, upsert their profile.
+      if (data.session) {
+         const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({ id: data.session.user.id, role: role, phone: formData.phoneNumber, full_name: formData.name }, { onConflict: 'id' });
 
-    //       if(profileError) {
-    //          toast({
-    //             variant: 'destructive',
-    //             title: 'Profile Error',
-    //             description: 'Could not save your profile. Please try again.',
-    //         });
-    //         setIsSubmitting(false);
-    //         return;
-    //       }
-    //   }
-    //   toast({
-    //     title: 'Success!',
-    //     description: "You're now signed in.",
-    //   });
-    //   router.push(`/${role}`);
-    // }
-     toast({
-      title: 'Success!',
-      description: "You're now signed in.",
-    });
-    router.push(`/${role}`);
+          if(profileError) {
+             toast({
+                variant: 'destructive',
+                title: 'Profile Error',
+                description: 'Could not save your profile. Please try again.',
+            });
+            setIsSubmitting(false);
+            return;
+          }
+      }
+      toast({
+        title: 'Success!',
+        description: "You're now signed in.",
+      });
+      router.push(`/${role}`);
+    }
+
   }
   
   const title = `Welcome, ${role === 'teacher' ? 'Teacher' : 'Parent'}!`;

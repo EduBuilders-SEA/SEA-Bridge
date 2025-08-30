@@ -82,3 +82,15 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom styles for react-phone-number-input */
+.PhoneInputInput {
+  background-color: transparent !important;
+  outline: none !important;
+  border: none !important;
+  height: 100%;
+  color: hsl(var(--foreground));
+}
+.PhoneInputCountrySelect-arrow {
+  color: hsl(var(--foreground));
+}

@@ -1,4 +1,4 @@
-# **App Name**: LinguaLearn Bridge
+# **App Name**: SeaBridge
 
 ## Core Features:
 
