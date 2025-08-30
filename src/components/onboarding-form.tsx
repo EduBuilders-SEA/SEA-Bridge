@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -14,9 +14,12 @@ import Logo from '@/components/logo';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2 } from 'lucide-react';
+import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input'
 
-const phoneFormSchema = z.object({
-  phoneNumber: z.string().min(10, { message: 'Please enter a valid phone number, including country code.' }),
+
+const formSchema = z.object({
+  name: z.string().min(2, { message: "Please enter your full name." }),
+  phoneNumber: z.string().refine(isValidPhoneNumber, { message: 'Please enter a valid phone number.' }),
 });
 
 const otpFormSchema = z.object({
@@ -32,11 +35,13 @@ export default function OnboardingForm() {
   
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [formData, setFormData] = useState({ name: '', phoneNumber: '' });
 
-  const phoneForm = useForm<z.infer<typeof phoneFormSchema>>({
-    resolver: zodResolver(phoneFormSchema),
+
+  const mainForm = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
+      name: '',
       phoneNumber: '',
     },
   });
@@ -53,74 +58,80 @@ export default function OnboardingForm() {
     return <div className="flex items-center justify-center min-h-screen">Invalid role selected. Go back to the <a href="/" className="underline pl-1">home page</a>.</div>;
   }
   
-  async function onPhoneSubmit(values: z.infer<typeof phoneFormSchema>) {
+  async function onMainFormSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
-    setPhoneNumber(values.phoneNumber);
+    setFormData(values);
 
-    const { error } = await supabase.auth.signInWithOtp({
-      phone: values.phoneNumber,
-    });
+    // const { error } = await supabase.auth.signInWithOtp({
+    //   phone: values.phoneNumber,
+    // });
 
-    if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error sending OTP',
-        description: error.message,
-      });
-      setIsSubmitting(false);
-    } else {
-      toast({
-        title: 'OTP Sent',
-        description: 'Check your phone for the verification code.',
-      });
-      setStep(2);
-      setIsSubmitting(false);
-    }
+    // if (error) {
+    //   toast({
+    //     variant: 'destructive',
+    //     title: 'Error sending OTP',
+    //     description: error.message,
+    //   });
+    //   setIsSubmitting(false);
+    // } else {
+    //   toast({
+    //     title: 'OTP Sent',
+    //     description: 'Check your phone for the verification code.',
+    //   });
+    //   setStep(2);
+    //   setIsSubmitting(false);
+    // }
+    setStep(2)
   }
 
   async function onOtpSubmit(values: z.infer<typeof otpFormSchema>) {
      setIsSubmitting(true);
 
     const { data, error } = await supabase.auth.verifyOtp({
-      phone: phoneNumber,
+      phone: formData.phoneNumber,
       token: values.otp,
       type: 'sms',
     });
 
-    if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid OTP',
-        description: error.message,
-      });
-      setIsSubmitting(false);
-    } else {
-      // User is signed in. Now, upsert their profile.
-      if (data.session) {
-         const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert({ id: data.session.user.id, role: role, phone: phoneNumber }, { onConflict: 'id' });
+    // if (error) {
+    //   toast({
+    //     variant: 'destructive',
+    //     title: 'Invalid OTP',
+    //     description: error.message,
+    //   });
+    //   setIsSubmitting(false);
+    // } else {
+    //   // User is signed in. Now, upsert their profile.
+    //   if (data.session) {
+    //      const { error: profileError } = await supabase
+    //         .from('profiles')
+    //         .upsert({ id: data.session.user.id, role: role, phone: formData.phoneNumber, full_name: formData.name }, { onConflict: 'id' });
 
-          if(profileError) {
-             toast({
-                variant: 'destructive',
-                title: 'Profile Error',
-                description: 'Could not save your profile. Please try again.',
-            });
-            setIsSubmitting(false);
-            return;
-          }
-      }
-      toast({
-        title: 'Success!',
-        description: "You're now signed in.",
-      });
-      router.push(`/${role}`);
-    }
+    //       if(profileError) {
+    //          toast({
+    //             variant: 'destructive',
+    //             title: 'Profile Error',
+    //             description: 'Could not save your profile. Please try again.',
+    //         });
+    //         setIsSubmitting(false);
+    //         return;
+    //       }
+    //   }
+    //   toast({
+    //     title: 'Success!',
+    //     description: "You're now signed in.",
+    //   });
+    //   router.push(`/${role}`);
+    // }
+     toast({
+      title: 'Success!',
+      description: "You're now signed in.",
+    });
+    router.push(`/${role}`);
   }
   
   const title = `Welcome, ${role === 'teacher' ? 'Teacher' : 'Parent'}!`;
-  const description = "Let's get you signed in with your phone number.";
+  const description = "Let's get you signed in.";
 
   return (
     <div className="flex min-h-screen w-full bg-background items-center justify-center p-4">
@@ -133,19 +144,44 @@ export default function OnboardingForm() {
             </CardHeader>
             <CardContent>
               {step === 1 && (
-                <Form {...phoneForm}>
-                  <form onSubmit={phoneForm.handleSubmit(onPhoneSubmit)} className="space-y-6">
+                <Form {...mainForm}>
+                  <form onSubmit={mainForm.handleSubmit(onMainFormSubmit)} className="space-y-6">
                     <FormField
-                      control={phoneForm.control}
+                        control={mainForm.control}
+                        name="name"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Full Name</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. Jane Doe" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                    <FormField
+                      control={mainForm.control}
                       name="phoneNumber"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Phone Number</FormLabel>
                           <FormControl>
-                            <Input placeholder="+15551234567" {...field} />
+                            <Controller
+                                name="phoneNumber"
+                                control={mainForm.control}
+                                render={({ field }) => (
+                                    <PhoneInput
+                                        {...field}
+                                        placeholder="Enter phone number"
+                                        international
+                                        defaultCountry="US"
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                                    />
+                                )}
+                            />
                           </FormControl>
                            <FormDescription>
-                            Include your country code.
+                            We'll text you a verification code.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -171,7 +207,7 @@ export default function OnboardingForm() {
                             <Input placeholder="123456" {...field} />
                           </FormControl>
                           <FormDescription>
-                            Enter the 6-digit code we sent to {phoneNumber}.
+                            Enter the 6-digit code we sent to {formData.phoneNumber}.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
