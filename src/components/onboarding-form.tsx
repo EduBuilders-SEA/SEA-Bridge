@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2 } from 'lucide-react';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input'
+import Link from 'next/link';
 
 
 const formSchema = z.object({
@@ -55,7 +56,12 @@ export default function OnboardingForm() {
 
 
   if (!role || (role !== 'teacher' && role !== 'parent')) {
-    return <div className="flex items-center justify-center min-h-screen">Invalid role selected. Go back to the <a href="/" className="underline pl-1">home page</a>.</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Invalid role selected. Go back to the
+        <Link href="/" className="underline pl-1">home page</Link>.
+      </div>
+    );
   }
   
   async function onMainFormSubmit(values: z.infer<typeof formSchema>) {
@@ -104,7 +110,7 @@ export default function OnboardingForm() {
       if (data.session) {
          const { error: profileError } = await supabase
             .from('profiles')
-            .upsert({ id: data.session.user.id, role: role, phone: formData.phoneNumber, full_name: formData.name }, { onConflict: 'id' });
+            .upsert({ id: data.session.user.id, role, phone: formData.phoneNumber, full_name: formData.name }, { onConflict: 'id' });
 
           if(profileError) {
              toast({

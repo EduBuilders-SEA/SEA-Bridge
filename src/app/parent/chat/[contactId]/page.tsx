@@ -179,7 +179,7 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
 
     try {
       const result = await transcribeAndTranslate({ 
-        audioDataUri: audioDataUri, 
+        audioDataUri, 
         targetLanguage: 'English' // Teacher's language is assumed to be English for now
       });
       setMessages(prev =>
@@ -251,7 +251,7 @@ function ParentChatPageComponent({ params: { contactId } }: { params: { contactI
     setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isSummarizing: true } : m));
     try {
       // In a real app, you would fetch the document content. Here, we use mock data.
-      const result = await summarizeDocument({ documentContent: documentContent });
+      const result = await summarizeDocument({ documentContent });
       setMessages(prev =>
         prev.map(m =>
           m.id === messageId
