@@ -19,28 +19,28 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function Home() {
     const [userRole, setUserRole] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const router = useRouter();
     const supabase = createClient();
 
-    useEffect(() => {
-        const checkUser = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                const { data: profile, error } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', session.user.id)
-                    .single();
+    // useEffect(() => {
+    //     const checkUser = async () => {
+    //         const { data: { session } } = await supabase.auth.getSession();
+    //         if (session) {
+    //             const { data: profile, error } = await supabase
+    //                 .from('profiles')
+    //                 .select('role')
+    //                 .eq('id', session.user.id)
+    //                 .single();
 
-                if (profile) {
-                    setUserRole(profile.role);
-                }
-            }
-            setLoading(false);
-        };
-        checkUser();
-    }, [supabase, router]);
+    //             if (profile) {
+    //                 setUserRole(profile.role);
+    //             }
+    //         }
+    //         setLoading(false);
+    //     };
+    //     checkUser();
+    // }, [supabase, router]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
