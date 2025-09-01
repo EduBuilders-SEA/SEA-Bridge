@@ -52,7 +52,7 @@ export default function TeacherContactsPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background font-body">
-       <header className="flex items-center justify-between p-4 border-b bg-card shadow-sm sticky top-0 z-10">
+       <header className="flex items-center justify-between p-4 border-b bg-card shadow-xs sticky top-0 z-10">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
             <Link href="/">
