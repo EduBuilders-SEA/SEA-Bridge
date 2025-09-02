@@ -69,7 +69,12 @@ Based on all the provided information, generate the following:
 2.  An "actionItems" array that extracts any deadlines, fees, or specific tasks mentioned for either the parent or teacher.
 3.  If attendance data was part of the input, return it in the "attendance" field of the output.
 
-Ensure your output is a valid JSON object that strictly adheres to the specified output schema.
+**Response Format:** Return only a JSON object with this exact structure:
+{
+  "summaryText": "bullet point summary here",
+  "actionItems": [{"text": "action item", "type": "deadline|fee|action_item"}],
+  "attendance": {"present": number, "absent": number, "tardy": number}
+}
 `,
 });
 
