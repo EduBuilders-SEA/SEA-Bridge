@@ -33,10 +33,14 @@ function OnboardingSkeleton() {
 }
 
 export default function OnboardingPage() {
+  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+  const recaptchaSrc = recaptchaSiteKey
+    ? `https://www.google.com/recaptcha/enterprise.js?render=${recaptchaSiteKey}`
+    : undefined;
   return (
     <>
       <Script 
-        src="https://www.google.com/recaptcha/enterprise.js?render=6LfBYbsrAAAAAA0NeaZIP8ewXcP7rOKZI1MOgVJo"
+        src={recaptchaSrc}
         strategy="beforeInteractive"
       />
       <Suspense fallback={<OnboardingSkeleton />}>

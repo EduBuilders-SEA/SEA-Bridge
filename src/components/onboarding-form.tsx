@@ -73,7 +73,8 @@ export default function OnboardingForm() {
         }
       }
     };
-  }, [recaptchaVerifier]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   const mainForm = useForm<z.infer<typeof formSchema>>({
