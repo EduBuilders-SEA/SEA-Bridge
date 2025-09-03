@@ -20,7 +20,8 @@ SEA Bridge is a multilingual parent-teacher communication platform designed for 
 - **Frontend**: Next.js 15 with App Router, TypeScript, Tailwind CSS
 - **UI Components**: Radix UI primitives with shadcn/ui patterns  
 - **AI Integration**: Google Genkit with Gemini 2.5 Flash model
-- **Database & Backend**: Supabase (PostgreSQL, Auth, Realtime, Storage)
+- **Database & Backend**: Supabase (PostgreSQL, Realtime, Storage) with Firebase Auth integration
+- **Authentication**: Firebase Auth for phone verification + reCAPTCHA, integrated as third-party provider
 - **Phone Integration**: React Phone Number Input with international support
 
 ### Core Architecture Pattern
@@ -38,9 +39,9 @@ The app follows a **role-based routing structure** with separate dashboards for 
 
 ### Authentication Flow
 
-1. **Phone Authentication**: Uses Supabase Auth with phone verification
-2. **Profile Creation**: Users complete onboarding with role selection (teacher/parent)
-3. **Session Management**: Supabase handles JWT tokens and session persistence
+1. **Phone Authentication**: Uses Firebase Auth as third-party provider integrated with Supabase (following https://supabase.com/docs/guides/auth/third-party/firebase-auth)
+2. **Profile Creation**: Users complete onboarding with role selection (teacher/parent) 
+3. **Session Management**: Firebase handles auth tokens, Supabase uses Firebase JWT for RLS policies
 4. **Role-Based Access**: App routes users to appropriate dashboards based on profile.role
 
 ### Database Schema (Supabase)
@@ -70,8 +71,9 @@ Key AI flows in `/src/ai/flows/`:
 
 #### Client Setup
 
-- `src/lib/supabase/client.ts` - Browser client for client-side operations
+- `src/lib/supabase/client.ts` - Browser client configured with Firebase Auth token integration
 - `src/lib/supabase/server.ts` - Server client for Server Actions and SSR
+- `src/lib/firebase/config.ts` - Firebase Auth configuration with conditional emulator connection
 
 #### Real-time Features
 
@@ -100,9 +102,21 @@ Components follow atomic design principles:
 
 #### Environment Variables Required
 
+**Core Services**
 - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key  
 - `GOOGLE_GENAI_API_KEY` - Google AI API key for Genkit
+
+**Firebase Auth (Third-party Integration)**
+- `NEXT_PUBLIC_FIREBASE_API_KEY` - Firebase project API key
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` - Firebase auth domain
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID` - Firebase project ID
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` - Firebase storage bucket
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` - Firebase messaging sender ID
+- `NEXT_PUBLIC_FIREBASE_APP_ID` - Firebase app ID
+
+**Development**
+- `NEXT_PUBLIC_USE_FIREBASE_EMULATOR` - Set to 'true' to enable Firebase Auth emulator (defaults to 'false')
 
 ## Development Patterns
 
@@ -154,6 +168,19 @@ See @README.md for project overview and @package.json for available npm commands
 
 - ESLint: run `npm run lint` and select the Next.js plugin preset when prompted (Strict recommended).
 - TypeScript: fix Next.js 15 compatibility issues (e.g., async route params, `cookies()` now async). These are independent of Tailwind.
+
+## Troubleshooting
+
+### Firebase Auth Errors
+
+**Issue**: `Failed to load resource: Could not connect to the server` errors for localhost:9099
+- **Cause**: Firebase Auth trying to connect to emulator that isn't running
+- **Solution**: Ensure `NEXT_PUBLIC_USE_FIREBASE_EMULATOR=false` in .env (default behavior)
+- **To use emulator**: Set `NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true` and run `firebase emulators:start --only auth`
+
+### Development Setup Issues
+
+**Authentication Flow**: If experiencing auth issues, verify Firebase project is properly configured in Supabase third-party auth settings.
 
 ## Memory conventions for Claude Code
 
