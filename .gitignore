@@ -39,7 +39,11 @@ next-env.d.ts
 
 .genkit/*
 .env*
+!.env.template
 
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# vscode settings (personal preferences)
+.vscode/

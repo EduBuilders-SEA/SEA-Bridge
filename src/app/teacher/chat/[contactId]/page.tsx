@@ -132,7 +132,7 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
     try {
       // Teachers send voice notes in English and translate to the parent's language
       const result = await transcribeAndTranslate({ 
-        audioDataUri: audioDataUri, 
+        audioDataUri, 
         targetLanguage: contact.language || 'English' 
       });
       setMessages(prev =>
