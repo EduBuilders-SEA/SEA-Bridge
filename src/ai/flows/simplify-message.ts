@@ -41,6 +41,9 @@ Original Message:
 "{{content}}"
 
 Rewrite the above message into simple, plain language.
+
+**Response Format:** Return only a JSON object with this exact structure:
+{"simplifiedContent": "your simplified text here"}
 `,
 });
 

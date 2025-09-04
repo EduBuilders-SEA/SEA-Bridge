@@ -42,6 +42,9 @@ Original Message:
 "{{content}}"
 
 Split the above message into SMS chunks.
+
+**Response Format:** Return only a JSON object with this exact structure:
+{"chunks": ["chunk1", "chunk2", "etc"]}
 `,
 });
 

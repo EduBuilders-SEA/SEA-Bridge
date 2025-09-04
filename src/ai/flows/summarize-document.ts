@@ -43,6 +43,9 @@ Document Content:
 ---
 
 Provide a simple summary of the document.
+
+**Response Format:** Return only a JSON object with this exact structure:
+{"summary": "your summary text here"}
 `,
 });
 

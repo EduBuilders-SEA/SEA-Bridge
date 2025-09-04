@@ -46,6 +46,9 @@ Original Message:
 "{{content}}"
 
 Translate the above message into {{targetLanguage}}.
+
+**Response Format:** Return only a JSON object with this exact structure:
+{"translation": "your translated text here"}
 `,
 });
 

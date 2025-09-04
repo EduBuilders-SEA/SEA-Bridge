@@ -8,6 +8,7 @@
  */
 
 import { ai } from '@/ai/genkit';
+import { transcribeAudioWithAWSTranscribe } from '@/ai/transcribe';
 import { z } from 'zod';
 
 const TranscribeAndTranslateInputSchema = z.object({
@@ -41,14 +42,9 @@ const transcribeAndTranslateFlow = ai.defineFlow(
     outputSchema: TranscribeAndTranslateOutputSchema,
   },
   async ({ audioDataUri, targetLanguage }) => {
-    const { text: transcription } = await ai.generate({
-        model: 'googleai/gemini-2.0-flash',
-        prompt: [{text: "Transcribe the following audio:"}, { media: { url: audioDataUri } }],
-        config: {
-            responseModalities: ['TEXT'],
-        },
-    });
-
+    // Use AWS Transcribe service for audio transcription
+    const transcription = await transcribeAudioWithAWSTranscribe(audioDataUri);
+    
     if (!transcription) {
       throw new Error('Failed to transcribe audio.');
     }
