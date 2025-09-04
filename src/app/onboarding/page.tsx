@@ -3,6 +3,7 @@
 import { Suspense } from 'react';
 import OnboardingForm from '@/components/onboarding-form';
 import { Skeleton } from '@/components/ui/skeleton';
+import Script from 'next/script';
 
 function OnboardingSkeleton() {
   return (
@@ -32,9 +33,19 @@ function OnboardingSkeleton() {
 }
 
 export default function OnboardingPage() {
+  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+  const recaptchaSrc = recaptchaSiteKey
+    ? `https://www.google.com/recaptcha/enterprise.js?render=${recaptchaSiteKey}`
+    : undefined;
   return (
-    <Suspense fallback={<OnboardingSkeleton />}>
-      <OnboardingForm />
-    </Suspense>
+    <>
+      <Script 
+        src={recaptchaSrc}
+        strategy="beforeInteractive"
+      />
+      <Suspense fallback={<OnboardingSkeleton />}>
+        <OnboardingForm />
+      </Suspense>
+    </>
   );
 }
