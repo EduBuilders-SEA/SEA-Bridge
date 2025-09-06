@@ -19,9 +19,11 @@ SEA Bridge is a multilingual parent-teacher communication platform designed for 
 
 - **Frontend**: Next.js 15 with App Router, TypeScript, Tailwind CSS
 - **UI Components**: Radix UI primitives with shadcn/ui patterns  
+- **State Management**: TanStack Query (React Query) for server state, minimal client state
+- **Authentication**: Firebase Auth for phone verification + reCAPTCHA, integrated as third-party provider
+- **Auth Protection**: Next.js middleware for route protection (no useEffect auth checks)
 - **AI Integration**: Google Genkit with Gemini 2.5 Flash model
 - **Database & Backend**: Supabase (PostgreSQL, Realtime, Storage) with Firebase Auth integration
-- **Authentication**: Firebase Auth for phone verification + reCAPTCHA, integrated as third-party provider
 - **Phone Integration**: React Phone Number Input with international support
 
 ### Core Architecture Pattern
@@ -43,6 +45,7 @@ The app follows a **role-based routing structure** with separate dashboards for 
 2. **Profile Creation**: Users complete onboarding with role selection (teacher/parent) 
 3. **Session Management**: Firebase handles auth tokens, Supabase uses Firebase JWT for RLS policies
 4. **Role-Based Access**: App routes users to appropriate dashboards based on profile.role
+5. **State Management**: TanStack Query manages auth state and profile data with automatic caching
 
 ### Database Schema (Supabase)
 
@@ -81,6 +84,38 @@ Key AI flows in `/src/ai/flows/`:
 - Optimistic UI updates for instant message display
 - File uploads through Supabase Storage with RLS policies
 
+### Data Fetching & State Management
+
+#### TanStack Query Integration
+
+- `src/lib/query-client.ts` - Query client configuration with 5-minute stale time
+- All server state managed through React Query hooks
+- Automatic background refetching and caching
+- Optimistic updates for mutations
+
+#### Custom Data Hooks
+
+- `src/hooks/use-auth.ts` - Firebase Auth state with `react-firebase-hooks`
+- `src/hooks/use-profile.ts` - User profile data from Supabase with React Query
+- `src/hooks/use-messages.ts` - Message fetching and sending with optimistic updates
+- `src/hooks/use-realtime-messages.ts` - Realtime message subscriptions with Query cache updates
+
+#### Authentication Hooks Pattern
+
+```typescript
+// ✅ CORRECT: Use custom hooks instead of useEffect
+const { user, loading } = useAuth();
+const { data: profile, isLoading } = useProfile();
+
+// ❌ AVOID: Direct useEffect for auth checks
+useEffect(() => {
+  const checkUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    // Don't do this - use middleware instead
+  };
+}, []);
+```
+
 ### UI Components Structure
 
 Components follow atomic design principles:
@@ -118,11 +153,67 @@ Components follow atomic design principles:
 **Development**
 - `NEXT_PUBLIC_USE_FIREBASE_EMULATOR` - Set to 'true' to enable Firebase Auth emulator (defaults to 'false')
 
+#### Required Dependencies
+
+**State Management & Data Fetching**
+- `@tanstack/react-query` - Server state management and caching
+- `react-firebase-hooks` - Firebase Auth state management hooks
+- `zustand` - Minimal client state (optional)
+
 ## Development Patterns
+
+### React Patterns
+
+#### Hook Usage Guidelines
+
+- **Authentication**: Use `useAuth()` and `useProfile()` hooks instead of useEffect
+- **Data Fetching**: Use TanStack Query hooks instead of useEffect + useState patterns
+- **Realtime**: Use `useRealtimeMessages()` for real-time subscriptions
+- **Hook Order**: Always call all hooks before any early returns to avoid conditional hook errors
+
+#### Component Structure
+
+```typescript
+// ✅ CORRECT: Hooks first, then early returns
+function MyComponent() {
+  const { user, loading } = useAuth();
+  const { data: profile } = useProfile();
+  
+  // All useEffect calls here, before any returns
+  useEffect(() => { /* logic */ }, []);
+  
+  // Now early returns are safe
+  if (loading) return <Loading />;
+  if (!user) return null;
+  
+  // Component logic
+}
+```
 
 ### Server Actions
 
 All backend operations should use Next.js Server Actions pattern rather than API routes. AI flows are implemented as server-side functions for security and performance.
+
+### Code Style Standards
+
+- **Quotes**: Use single quotes ('') for strings
+- **Semicolons**: Omit semicolons except when required for ASI
+- **Imports**: Group and sort imports (external first, then internal)
+- **Formatting**: Use Prettier with 2-space indentation
+- **TypeScript**: Prefer explicit types over `any`, use interfaces for objects
+
+### Authentication Patterns
+
+- **Client Auth**: Use Firebase Auth state via `useAuth()` hook
+- **Server Auth**: Pass Firebase tokens to Supabase server client
+- **No useEffect**: Avoid useEffect for authentication logic in components
+
+### Data Fetching Patterns
+
+- **Server State**: Use TanStack Query for all server data (profiles, messages, contacts)
+- **Real-time**: Use Supabase subscriptions with Query cache updates
+- **Mutations**: Use React Query mutations with optimistic updates
+- **Caching**: Rely on Query cache instead of component state for server data
 
 ### Internationalization
 
@@ -171,6 +262,16 @@ See @README.md for project overview and @package.json for available npm commands
 
 ## Troubleshooting
 
+### React Hook Errors
+
+**Issue**: `React Hook "useEffect" is called conditionally`
+- **Cause**: useEffect called after early returns or inside conditions
+- **Solution**: Move all hooks (including useEffect) to the top of component, before any early returns
+
+**Issue**: `Cannot read property 'user' of undefined`
+- **Cause**: Using auth state before hooks are initialized
+- **Solution**: Always check loading states from useAuth() before using user data
+
 ### Firebase Auth Errors
 
 **Issue**: `Failed to load resource: Could not connect to the server` errors for localhost:9099
@@ -178,9 +279,27 @@ See @README.md for project overview and @package.json for available npm commands
 - **Solution**: Ensure `NEXT_PUBLIC_USE_FIREBASE_EMULATOR=false` in .env (default behavior)
 - **To use emulator**: Set `NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true` and run `firebase emulators:start --only auth`
 
+### TanStack Query Issues
+
+**Issue**: Data not updating after mutations
+- **Cause**: Missing query invalidation after successful mutations
+- **Solution**: Use `queryClient.invalidateQueries()` in mutation onSuccess callbacks
+
+**Issue**: `Cannot read properties of undefined` with Query data
+- **Cause**: Accessing query data before it loads
+- **Solution**: Use loading states and optional chaining: `data?.property`
+
+### Middleware Issues
+
+**Issue**: Infinite redirects between middleware and pages
+- **Cause**: Middleware redirecting to pages that also check auth
+- **Solution**: Remove client-side auth checks, let middleware handle all route protection
+
 ### Development Setup Issues
 
 **Authentication Flow**: If experiencing auth issues, verify Firebase project is properly configured in Supabase third-party auth settings.
+
+**Missing Dependencies**: Run `npm install @tanstack/react-query react-firebase-hooks` if data fetching hooks are not working.
 
 ## Memory conventions for Claude Code
 
@@ -189,3 +308,61 @@ See @README.md for project overview and @package.json for available npm commands
 - Quickly add new memories by starting a message with `#`; use `/memory` to edit.
 
 Reference: [Claude Code memory best practices](https://docs.anthropic.com/en/docs/claude-code/memory)
+
+
+### Auth model (single source of truth)
+
+- Firebase Auth is the authentication source of truth
+- Supabase uses the Firebase ID token via `accessToken` on every request
+- Do not call `supabase.auth.getUser()`; use `useAuth()` for auth state
+- Determine identity in the DB using RLS (`auth.jwt()->>'sub'`)
+
+### Onboarding flow & phone policy
+
+- Flow: Phone → OTP → if profile exists redirect to its role; else create profile (nullable `name`) → block UI until name is set
+- Single profile per phone (unique): if phone is registered with a different role, notify and redirect to that role
+- Always store phone numbers in E.164; validate before any send
+- E.164 validation: use regex `^\+[1-9]\d{7,14}$`
+- Do not query Supabase before OTP; perform profile lookups only after user is authenticated
+
+### OTP & reCAPTCHA UX
+
+- Trigger OTP send on explicit transitions (event-driven), not in `useEffect`
+- Reinitialize reCAPTCHA for every send; clear existing verifier first
+- Provide a Resend action with a cooldown (e.g., 30s) and disable while cooling down
+- Show clear toasts for failure states (captcha error, too-many-requests)
+
+### Profile completeness gate
+
+- Make `profiles.name` nullable to streamline OTP-first onboarding
+- Block UI with a “Complete your profile” modal if `profile.name` is null; cannot dismiss until saved
+- After saving name, invalidate `['profile', uid]` via React Query
+- RLS gate writes until name exists using `public.profile_is_complete()` and restrictive policies on `messages`, `contacts`, `attendance`
+
+### React Query & Realtime patterns
+
+- Queries: include stable IDs in cache keys; set reasonable `staleTime` (e.g., 5 min)
+- Mutations: use optimistic updates where safe; invalidate specific queries on success
+- Realtime: subscribe per entity; update Query cache in the subscription handler; remove channel on unmount
+
+### Middleware note
+
+- Do not perform server-side session checks for Firebase in middleware
+- Use client hooks for auth state and RLS for authorization; middleware should not expect Supabase cookies
+
+### SQL policy conventions
+
+- Use “restrictive” policies to AND with existing policies
+- Policy syntax order: `create policy ... on <schema.table> as restrictive for <command> ...`
+- Keep `profiles.name` as `TEXT` (nullable) and `profiles.phone` unique; enforce one profile per phone
+
+### Error-handling UX
+
+- Use concise toasts with actionable messages; log details to console for debugging
+- For invalid phone, show: “Enter a valid phone number with country code”
+- For resend cooldown: show seconds remaining and disable the button
+
+### Review reminders
+
+- Revalidate this memory after auth or onboarding changes
+- Keep phone/OTP rules and RLS gates in sync with the schema and hooks
