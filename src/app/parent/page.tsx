@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
+import { useProfile } from '@/hooks/use-profile';
 import { contacts, type Contact } from '@/lib/contacts';
 import { languages } from '@/lib/languages';
 import { ArrowLeft, Languages, PlusCircle, Search } from 'lucide-react';
@@ -26,22 +27,25 @@ export default function ParentContactsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [allContacts, setAllContacts] = useState(contacts);
   const [language, setLanguage] = useState('English');
-  const [userName, setUserName] = useState('Parent');
+  
+  const { user, loading: authLoading } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useProfile();
   const router = useRouter();
-  const { user, loading } = useAuth();
 
+  // Handle auth redirects on client side
   useEffect(() => {
-    if (!loading) {
+    if (!authLoading && !profileLoading) {
       if (!user) {
         router.push('/onboarding?role=parent');
-      } else {
-        // In a real app, you might fetch the profile to get the name
-        setUserName('Parent');
+      } else if (profile && profile.role !== 'parent') {
+        router.push(`/${profile.role}`); // Redirect to correct role dashboard
       }
     }
-  }, [user, loading, router]);
+  }, [user, profile, authLoading, profileLoading, router]);
 
-  if (loading) {
+
+  // Show loading state
+  if (authLoading || profileLoading) {
     return (
       <div className='flex items-center justify-center min-h-screen'>
         <div>Loading...</div>
@@ -49,9 +53,8 @@ export default function ParentContactsPage() {
     );
   }
 
-  if (!user) {
-    return null;
-  }
+  // Don't show content until auth is verified
+  if (!user || !profile) return null;
 
   const teacherContacts = allContacts.filter((c) => c.role === 'teacher');
 
@@ -79,7 +82,7 @@ export default function ParentContactsPage() {
             </Link>
           </Button>
           <h1 className='text-lg font-headline font-semibold'>
-            {userName}'s Teacher Contacts
+            {profile?.name || 'Parent'}'s Teacher Contacts
           </h1>
         </div>
         <Link href='/' className='hidden sm:block'>

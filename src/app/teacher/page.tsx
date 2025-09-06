@@ -11,7 +11,8 @@ import { useProfile } from '@/hooks/use-profile';
 import { contacts, type Contact } from '@/lib/contacts';
 import { ArrowLeft, PlusCircle, Search } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function TeacherContactsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,6 +20,19 @@ export default function TeacherContactsPage() {
 
   const { user, loading: authLoading } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfile();
+  const router = useRouter();
+
+  // Handle auth redirects on client side
+  useEffect(() => {
+    if (!authLoading && !profileLoading) {
+      if (!user) {
+        router.push('/onboarding?role=teacher');
+      } else if (profile && profile.role !== 'teacher') {
+        router.push(`/${profile.role}`); // Redirect to correct role dashboard
+      }
+    }
+  }, [user, profile, authLoading, profileLoading, router]);
+
 
   // Show loading state
   if (authLoading || profileLoading) {
@@ -29,10 +43,9 @@ export default function TeacherContactsPage() {
     );
   }
 
-  // Redirect happens in middleware, so we just handle the UI
-  if (!user) return null;
+  // Don't show content until auth is verified
+  if (!user || !profile) return null;
 
-  const userName = profile?.name || 'Teacher';
 
   const parentContacts = allContacts.filter((c) => c.role === 'parent');
 
@@ -60,7 +73,7 @@ export default function TeacherContactsPage() {
             </Link>
           </Button>
           <h1 className='text-lg font-headline font-semibold'>
-            {userName}'s Parent Contacts
+            {profile?.name || 'Teacher'}'s Parent Contacts
           </h1>
         </div>
         <Link href='/' className='hidden sm:block'>

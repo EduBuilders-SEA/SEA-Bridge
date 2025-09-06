@@ -19,6 +19,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
+import { useProfile } from '@/hooks/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import { contacts } from '@/lib/contacts';
 import { conversation, documentContent, type Message } from '@/lib/data';
@@ -82,7 +83,8 @@ function ParentChatPageComponent({
   const [parentLanguage, setParentLanguage] = useState(lang ?? 'English');
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useProfile();
 
   const contact = contacts.find(
     (c) => c.id === contactId && c.role === 'teacher'
@@ -90,14 +92,16 @@ function ParentChatPageComponent({
 
   // Move ALL useEffect hooks here - BEFORE any early returns
   useEffect(() => {
-    if (!loading) {
+    if (!authLoading && !profileLoading) {
       if (!user) {
         router.push('/onboarding?role=parent');
-      } else {
-        setParentName('Parent');
+      } else if (profile && profile.role !== 'parent') {
+        router.push(`/${profile.role}`);
+      } else if (profile) {
+        setParentName(profile.name);
       }
     }
-  }, [user, loading, router]);
+  }, [user, profile, authLoading, profileLoading, router]);
 
   useEffect(() => {
     const autoTranslateMessages = async () => {
@@ -169,11 +173,11 @@ function ParentChatPageComponent({
   }, [messages]);
 
   // NOW you can have early returns
-  if (loading) {
+  if (authLoading || profileLoading) {
     return <ChatSkeleton />;
   }
 
-  if (!user) {
+  if (!user || !profile) {
     return null;
   }
 
@@ -443,14 +447,15 @@ function ParentChatPageComponent({
   );
 }
 
-export default function ParentChatPage({
+export default async function ParentChatPage({
   params,
 }: {
-  params: { contactId: string };
+  params: Promise<{ contactId: string }>;
 }) {
+  const resolvedParams = await params;
   return (
     <Suspense fallback={<ChatSkeleton />}>
-      <ParentChatPageComponent params={params} />
+      <ParentChatPageComponent params={resolvedParams} />
     </Suspense>
   );
 }

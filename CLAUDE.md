@@ -44,9 +44,8 @@ The app follows a **role-based routing structure** with separate dashboards for 
 1. **Phone Authentication**: Uses Firebase Auth as third-party provider integrated with Supabase (following https://supabase.com/docs/guides/auth/third-party/firebase-auth)
 2. **Profile Creation**: Users complete onboarding with role selection (teacher/parent) 
 3. **Session Management**: Firebase handles auth tokens, Supabase uses Firebase JWT for RLS policies
-4. **Route Protection**: Next.js middleware (`middleware.ts`) handles authentication checks and redirects
-5. **Role-Based Access**: App routes users to appropriate dashboards based on profile.role
-6. **State Management**: TanStack Query manages auth state and profile data with automatic caching
+4. **Role-Based Access**: App routes users to appropriate dashboards based on profile.role
+5. **State Management**: TanStack Query manages auth state and profile data with automatic caching
 
 ### Database Schema (Supabase)
 
@@ -205,7 +204,6 @@ All backend operations should use Next.js Server Actions pattern rather than API
 
 ### Authentication Patterns
 
-- **Route Protection**: Use Next.js middleware (`middleware.ts`) for authentication checks
 - **Client Auth**: Use Firebase Auth state via `useAuth()` hook
 - **Server Auth**: Pass Firebase tokens to Supabase server client
 - **No useEffect**: Avoid useEffect for authentication logic in components
@@ -310,3 +308,61 @@ See @README.md for project overview and @package.json for available npm commands
 - Quickly add new memories by starting a message with `#`; use `/memory` to edit.
 
 Reference: [Claude Code memory best practices](https://docs.anthropic.com/en/docs/claude-code/memory)
+
+
+### Auth model (single source of truth)
+
+- Firebase Auth is the authentication source of truth
+- Supabase uses the Firebase ID token via `accessToken` on every request
+- Do not call `supabase.auth.getUser()`; use `useAuth()` for auth state
+- Determine identity in the DB using RLS (`auth.jwt()->>'sub'`)
+
+### Onboarding flow & phone policy
+
+- Flow: Phone → OTP → if profile exists redirect to its role; else create profile (nullable `name`) → block UI until name is set
+- Single profile per phone (unique): if phone is registered with a different role, notify and redirect to that role
+- Always store phone numbers in E.164; validate before any send
+- E.164 validation: use regex `^\+[1-9]\d{7,14}$`
+- Do not query Supabase before OTP; perform profile lookups only after user is authenticated
+
+### OTP & reCAPTCHA UX
+
+- Trigger OTP send on explicit transitions (event-driven), not in `useEffect`
+- Reinitialize reCAPTCHA for every send; clear existing verifier first
+- Provide a Resend action with a cooldown (e.g., 30s) and disable while cooling down
+- Show clear toasts for failure states (captcha error, too-many-requests)
+
+### Profile completeness gate
+
+- Make `profiles.name` nullable to streamline OTP-first onboarding
+- Block UI with a “Complete your profile” modal if `profile.name` is null; cannot dismiss until saved
+- After saving name, invalidate `['profile', uid]` via React Query
+- RLS gate writes until name exists using `public.profile_is_complete()` and restrictive policies on `messages`, `contacts`, `attendance`
+
+### React Query & Realtime patterns
+
+- Queries: include stable IDs in cache keys; set reasonable `staleTime` (e.g., 5 min)
+- Mutations: use optimistic updates where safe; invalidate specific queries on success
+- Realtime: subscribe per entity; update Query cache in the subscription handler; remove channel on unmount
+
+### Middleware note
+
+- Do not perform server-side session checks for Firebase in middleware
+- Use client hooks for auth state and RLS for authorization; middleware should not expect Supabase cookies
+
+### SQL policy conventions
+
+- Use “restrictive” policies to AND with existing policies
+- Policy syntax order: `create policy ... on <schema.table> as restrictive for <command> ...`
+- Keep `profiles.name` as `TEXT` (nullable) and `profiles.phone` unique; enforce one profile per phone
+
+### Error-handling UX
+
+- Use concise toasts with actionable messages; log details to console for debugging
+- For invalid phone, show: “Enter a valid phone number with country code”
+- For resend cooldown: show seconds remaining and disable the button
+
+### Review reminders
+
+- Revalidate this memory after auth or onboarding changes
+- Keep phone/OTP rules and RLS gates in sync with the schema and hooks

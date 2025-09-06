@@ -3,6 +3,7 @@ import './globals.css';
 import 'react-phone-number-input/style.css';
 import { Toaster } from '@/components/ui/toaster';
 import QueryProvider from '@/components/providers/query-provider';
+import { CompleteProfileGate } from '@/components/complete-profile-gate';
 
 export const metadata: Metadata = {
   title: 'SEA Bridge',
@@ -32,6 +33,7 @@ export default function RootLayout({
       </head>
       <body className='font-body antialiased'>
         <QueryProvider>
+          <CompleteProfileGate />
           {children}
           <Toaster />
         </QueryProvider>

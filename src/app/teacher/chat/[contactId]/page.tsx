@@ -17,12 +17,13 @@ import {
 } from '@/components/chat/progress-summary-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
+import { useProfile } from '@/hooks/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import { contacts } from '@/lib/contacts';
 import { conversation, type Message } from '@/lib/data';
 import type { Attendance } from '@/lib/schemas';
 import { notFound, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
 
 type DisplayMessage = Message & {
   translatedContent?: string;
@@ -35,10 +36,10 @@ type DisplayMessage = Message & {
   fileUrl?: string;
 };
 
-export default function TeacherChatPage({
-  params: { contactId },
+function TeacherChatPageComponent({
+  contactId,
 }: {
-  params: { contactId: string };
+  contactId: string;
 }) {
   const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -54,20 +55,22 @@ export default function TeacherChatPage({
     tardy: 1,
   });
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useProfile();
 
   useEffect(() => {
-    if (!loading) {
+    if (!authLoading && !profileLoading) {
       if (!user) {
         router.push('/onboarding?role=teacher');
-      } else {
-        // In a real app, you might fetch the profile to get the name
-        setTeacherName('Teacher');
+      } else if (profile && profile.role !== 'teacher') {
+        router.push(`/${profile.role}`);
+      } else if (profile) {
+        setTeacherName(profile.name);
       }
     }
-  }, [user, loading, router]);
+  }, [user, profile, authLoading, profileLoading, router]);
 
-  if (loading) {
+  if (authLoading || profileLoading) {
     return (
       <div className='flex items-center justify-center min-h-screen'>
         <div>Loading...</div>
@@ -75,7 +78,7 @@ export default function TeacherChatPage({
     );
   }
 
-  if (!user) {
+  if (!user || !profile) {
     return null;
   }
 
@@ -328,5 +331,26 @@ export default function TeacherChatPage({
         </TabsContent>
       </Tabs>
     </ChatPageLayout>
+  );
+}
+
+function ChatSkeleton() {
+  return (
+    <div className='flex items-center justify-center min-h-screen'>
+      <div>Loading...</div>
+    </div>
+  );
+}
+
+export default async function TeacherChatPage({
+  params,
+}: {
+  params: Promise<{ contactId: string }>;
+}) {
+  const { contactId } = await params;
+  return (
+    <Suspense fallback={<ChatSkeleton />}>
+      <TeacherChatPageComponent contactId={contactId} />
+    </Suspense>
   );
 }
