@@ -23,25 +23,6 @@ export default function Home() {
     const router = useRouter();
     const supabase = createClient();
 
-    // useEffect(() => {
-    //     const checkUser = async () => {
-    //         const { data: { session } } = await supabase.auth.getSession();
-    //         if (session) {
-    //             const { data: profile, error } = await supabase
-    //                 .from('profiles')
-    //                 .select('role')
-    //                 .eq('id', session.user.id)
-    //                 .single();
-
-    //             if (profile) {
-    //                 setUserRole(profile.role);
-    //             }
-    //         }
-    //         setLoading(false);
-    //     };
-    //     checkUser();
-    // }, [supabase, router]);
-
     const handleLogout = async () => {
         await supabase.auth.signOut();
         setUserRole(null);
