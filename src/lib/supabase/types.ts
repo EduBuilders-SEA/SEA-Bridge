@@ -153,7 +153,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          name: string
+          name: string | null
           phone: string
           preferred_language: string | null
           role: string
@@ -161,7 +161,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id: string
-          name: string
+          name?: string | null
           phone: string
           preferred_language?: string | null
           role: string
@@ -169,7 +169,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
-          name?: string
+          name?: string | null
           phone?: string
           preferred_language?: string | null
           role?: string
@@ -181,7 +181,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      profile_is_complete: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

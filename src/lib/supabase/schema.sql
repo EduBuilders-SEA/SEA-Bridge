@@ -7,7 +7,7 @@
 CREATE TABLE profiles (
   id TEXT PRIMARY KEY,  -- Firebase UID (no foreign key needed)
   role TEXT NOT NULL CHECK (role IN ('teacher', 'parent')),
-  name TEXT NOT NULL,
+  name TEXT,
   phone TEXT UNIQUE NOT NULL,
   preferred_language TEXT DEFAULT 'en',
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -158,3 +158,90 @@ create policy "Teachers can update attendance records they created"
       and contacts.teacher_id = auth.jwt() ->> 'sub'
     )
   );
+
+-- =================================
+-- PROFILE COMPLETENESS ENFORCEMENT
+-- Writes require profile.name to be set
+-- =================================
+
+-- Helper function: check if current user's profile has a non-null name
+create or replace function public.profile_is_complete()
+returns boolean
+language sql
+stable
+as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = auth.jwt()->>'sub'
+      and p.name is not null
+  );
+$$;
+
+-- Gate writes on messages
+create policy "Require complete profile for messages INSERT"
+  on public.messages
+  as restrictive
+  for insert
+  to authenticated
+  with check (public.profile_is_complete());
+
+create policy "Require complete profile for messages UPDATE"
+  on public.messages
+  as restrictive
+  for update
+  to authenticated
+  using (public.profile_is_complete())
+  with check (public.profile_is_complete());
+
+create policy "Require complete profile for messages DELETE"
+  on public.messages
+  as restrictive
+  for delete
+  to authenticated
+  using (public.profile_is_complete());
+
+-- Gate writes on contacts
+create policy "Require complete profile for contacts INSERT"
+  on public.contacts
+  as restrictive
+  for insert
+  to authenticated
+  with check (public.profile_is_complete());
+
+create policy "Require complete profile for contacts UPDATE"
+  on public.contacts
+  as restrictive
+  for update
+  to authenticated
+  using (public.profile_is_complete())
+  with check (public.profile_is_complete());
+
+create policy "Require complete profile for contacts DELETE"
+  on public.contacts
+  as restrictive
+  for delete
+  to authenticated
+  using (public.profile_is_complete());
+
+-- Gate writes on attendance
+create policy "Require complete profile for attendance INSERT"
+  on public.attendance
+  as restrictive
+  for insert
+  to authenticated
+  with check (public.profile_is_complete());
+
+create policy "Require complete profile for attendance UPDATE"
+  on public.attendance
+  as restrictive
+  for update
+  to authenticated
+  using (public.profile_is_complete())
+  with check (public.profile_is_complete());
+
+create policy "Require complete profile for attendance DELETE"
+  on public.attendance
+  as restrictive
+  for delete
+  to authenticated
+  using (public.profile_is_complete());

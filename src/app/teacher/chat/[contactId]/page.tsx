@@ -1,24 +1,29 @@
+'use client';
 
-
-"use client";
-
-import { useState, useRef, useEffect } from 'react';
-import ChatPageLayout from '@/components/chat/chat-page-layout';
-import MessageInput from '@/components/chat/message-input';
-import ChatMessage from '@/components/chat/chat-message';
-import { conversation, type Message } from '@/lib/data';
-import { useToast } from "@/hooks/use-toast"
-import { contacts } from '@/lib/contacts';
-import { notFound, useRouter } from 'next/navigation';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ProgressSummaryCard, ProgressSummaryCardSkeleton } from '@/components/chat/progress-summary-card';
-import { summarizeConversation, type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
-import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
 import { chunkMessageForSms } from '@/ai/flows/chunk-message-for-sms';
-import { DateRangePicker } from '@/components/chat/date-range-picker';
+import {
+  summarizeConversation,
+  type SummarizeConversationOutput,
+} from '@/ai/flows/summarize-conversation';
+import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
 import { AttendanceForm } from '@/components/chat/attendance-form';
+import ChatMessage from '@/components/chat/chat-message';
+import ChatPageLayout from '@/components/chat/chat-page-layout';
+import { DateRangePicker } from '@/components/chat/date-range-picker';
+import MessageInput from '@/components/chat/message-input';
+import {
+  ProgressSummaryCard,
+  ProgressSummaryCardSkeleton,
+} from '@/components/chat/progress-summary-card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/hooks/use-auth';
+import { useProfile } from '@/hooks/use-profile';
+import { useToast } from '@/hooks/use-toast';
+import { contacts } from '@/lib/contacts';
+import { conversation, type Message } from '@/lib/data';
 import type { Attendance } from '@/lib/schemas';
-import { createClient } from '@/lib/supabase/client';
+import { notFound, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState, Suspense } from 'react';
 
 type DisplayMessage = Message & {
   translatedContent?: string;
@@ -31,32 +36,56 @@ type DisplayMessage = Message & {
   fileUrl?: string;
 };
 
-export default function TeacherChatPage({ params: { contactId } }: { params: { contactId: string } }) {
+function TeacherChatPageComponent({
+  contactId,
+}: {
+  contactId: string;
+}) {
   const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [teacherName, setTeacherName] = useState('Teacher');
-  const [summary, setSummary] = useState<SummarizeConversationOutput | null>(null);
+  const [summary, setSummary] = useState<SummarizeConversationOutput | null>(
+    null
+  );
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [attendance, setAttendance] = useState<Attendance>({ present: 18, absent: 1, tardy: 1 });
+  const [attendance, setAttendance] = useState<Attendance>({
+    present: 18,
+    absent: 1,
+    tardy: 1,
+  });
   const router = useRouter();
-  const supabase = createClient();
-  
+  const { user, loading: authLoading } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useProfile();
+
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+    if (!authLoading && !profileLoading) {
       if (!user) {
         router.push('/onboarding?role=teacher');
-      } else {
-        // In a real app, you might fetch the profile to get the name
-        setTeacherName('Teacher');
+      } else if (profile && profile.role !== 'teacher') {
+        router.push(`/${profile.role}`);
+      } else if (profile) {
+        setTeacherName(profile.name);
       }
-    };
-    checkUser();
-  }, [router, supabase]);
+    }
+  }, [user, profile, authLoading, profileLoading, router]);
 
-  const contact = contacts.find(c => c.id === contactId && c.role === 'parent');
-  
+  if (authLoading || profileLoading) {
+    return (
+      <div className='flex items-center justify-center min-h-screen'>
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user || !profile) {
+    return null;
+  }
+
+  const contact = contacts.find(
+    (c) => c.id === contactId && c.role === 'parent'
+  );
+
   if (!contact) {
     notFound();
   }
@@ -68,15 +97,18 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
   };
 
   const addMessage = (message: DisplayMessage) => {
-    setMessages(prev => [...prev, message]);
-  }
+    setMessages((prev) => [...prev, message]);
+  };
 
   const handleSendMessage = (content: string) => {
     const newMessage: DisplayMessage = {
       id: String(messages.length + 1),
       sender: 'teacher',
       content,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
       type: 'text',
       originalLanguage: 'English',
     };
@@ -88,23 +120,27 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
 
     try {
       const result = await chunkMessageForSms({ content });
-      const smsContent = `(Simulated SMS sent to ${contact.name})\n---\n${result.chunks.join('\n---\n')}`;
-      
+      const smsContent = `(Simulated SMS sent to ${
+        contact.name
+      })\n---\n${result.chunks.join('\n---\n')}`;
+
       const newMessage: DisplayMessage = {
         id: String(messages.length + 1),
         sender: 'teacher',
         content: smsContent,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
         type: 'text',
         originalLanguage: 'English',
       };
       addMessage(newMessage);
 
       toast({
-        title: "SMS Sent (Simulated)",
+        title: 'SMS Sent (Simulated)',
         description: `Message was split into ${result.chunks.length} chunks.`,
       });
-
     } catch (error) {
       console.error('Failed to send SMS:', error);
       toast({
@@ -114,14 +150,17 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
       });
     }
   };
-  
+
   const handleSendVoice = async (audioDataUri: string) => {
     const newId = String(messages.length + 1);
     const newMessage: DisplayMessage = {
       id: newId,
       sender: 'teacher',
-      content: "Voice note", // Placeholder content
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      content: 'Voice note', // Placeholder content
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
       type: 'voice',
       originalLanguage: 'English',
       isTranscribing: true,
@@ -131,15 +170,16 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
 
     try {
       // Teachers send voice notes in English and translate to the parent's language
-      const result = await transcribeAndTranslate({ 
-        audioDataUri, 
-        targetLanguage: contact.language || 'English' 
+      const result = await transcribeAndTranslate({
+        audioDataUri,
+        targetLanguage: contact.language || 'English',
       });
-      setMessages(prev =>
-        prev.map(m =>
+      setMessages((prev) =>
+        prev.map((m) =>
           m.id === newId
-            ? { ...m, 
-                isTranscribing: false, 
+            ? {
+                ...m,
+                isTranscribing: false,
                 content: result.transcription, // Use transcription as main content
                 transcription: result.transcription,
                 translatedContent: result.translation,
@@ -155,16 +195,29 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
         title: 'Error',
         description: 'Could not process the voice note. Please try again.',
       });
-      setMessages(prev => prev.map(m => m.id === newId ? { ...m, isTranscribing: false, content: "Error processing voice note" } : m));
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === newId
+            ? {
+                ...m,
+                isTranscribing: false,
+                content: 'Error processing voice note',
+              }
+            : m
+        )
+      );
     }
-  }
+  };
 
   const handleSendFile = (file: File) => {
-     const newMessage: DisplayMessage = {
+    const newMessage: DisplayMessage = {
       id: String(messages.length + 1),
       sender: 'teacher',
       content: file.name,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
       type: 'document',
       originalLanguage: 'English',
       fileUrl: URL.createObjectURL(file), // Create a temporary URL for the file
@@ -176,10 +229,13 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
     setIsGeneratingSummary(true);
     setSummary(null);
     try {
-      const conversationToSummarize = messages.map(({ sender, content }) => ({ sender, content }));
-      const result = await summarizeConversation({ 
+      const conversationToSummarize = messages.map(({ sender, content }) => ({
+        sender,
+        content,
+      }));
+      const result = await summarizeConversation({
         messages: conversationToSummarize,
-        attendance: currentAttendance
+        attendance: currentAttendance,
       });
       setSummary(result);
     } catch (error) {
@@ -192,12 +248,12 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
     } finally {
       setIsGeneratingSummary(false);
     }
-  }
+  };
 
   const handleUpdateAttendance = (newAttendance: Attendance) => {
     setAttendance(newAttendance);
     generateSummary(newAttendance);
-  }
+  };
 
   const onTabChange = (tab: string) => {
     if (tab === 'summary' && !summary && !isGeneratingSummary) {
@@ -212,51 +268,89 @@ export default function TeacherChatPage({ params: { contactId } }: { params: { c
   }, [messages]);
 
   const layoutTitle = `Conversation with ${contact.name}`;
-  const layoutUser = { name: teacher.name, avatarUrl: teacher.avatarUrl, role: 'Teacher' };
+  const layoutUser = {
+    name: teacher.name,
+    avatarUrl: teacher.avatarUrl,
+    role: 'Teacher',
+  };
 
   return (
     <ChatPageLayout title={layoutTitle} user={layoutUser}>
-      <Tabs defaultValue="chat" className="flex-1 flex flex-col overflow-hidden" onValueChange={onTabChange}>
-        <div className="flex justify-center p-2 border-b">
+      <Tabs
+        defaultValue='chat'
+        className='flex-1 flex flex-col overflow-hidden'
+        onValueChange={onTabChange}
+      >
+        <div className='flex justify-center p-2 border-b'>
           <TabsList>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
-            <TabsTrigger value="summary">Progress Summary</TabsTrigger>
+            <TabsTrigger value='chat'>Chat</TabsTrigger>
+            <TabsTrigger value='summary'>Progress Summary</TabsTrigger>
           </TabsList>
         </div>
-        <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6" ref={scrollAreaRef}>
-              {messages.map((msg) => (
-                  <ChatMessage key={msg.id} message={msg} currentUser="teacher" />
-              ))}
+        <TabsContent
+          value='chat'
+          className='flex-1 flex flex-col overflow-hidden'
+        >
+          <div
+            className='flex-1 space-y-4 overflow-y-auto p-4 md:p-6'
+            ref={scrollAreaRef}
+          >
+            {messages.map((msg) => (
+              <ChatMessage key={msg.id} message={msg} currentUser='teacher' />
+            ))}
           </div>
-          <div className="p-4 md:p-6 pt-2 border-t bg-background">
-              <MessageInput 
-                onSendMessage={handleSendMessage} 
-                onSendSms={handleSendSms}
-                onSendVoice={handleSendVoice}
-                onSendFile={handleSendFile}
-               />
+          <div className='p-4 md:p-6 pt-2 border-t bg-background'>
+            <MessageInput
+              onSendMessage={handleSendMessage}
+              onSendSms={handleSendSms}
+              onSendVoice={handleSendVoice}
+              onSendFile={handleSendFile}
+            />
           </div>
         </TabsContent>
-        <TabsContent value="summary" className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-            <div className="flex justify-end">
-                 <DateRangePicker />
-            </div>
-             <AttendanceForm 
-              initialData={attendance}
-              onUpdateAttendance={handleUpdateAttendance}
+        <TabsContent
+          value='summary'
+          className='flex-1 overflow-y-auto p-4 md:p-6 space-y-6'
+        >
+          <div className='flex justify-end'>
+            <DateRangePicker />
+          </div>
+          <AttendanceForm
+            initialData={attendance}
+            onUpdateAttendance={handleUpdateAttendance}
+          />
+          {isGeneratingSummary && <ProgressSummaryCardSkeleton />}
+          {summary && !isGeneratingSummary && (
+            <ProgressSummaryCard
+              studentName={contact.childName}
+              summaryText={summary.summaryText}
+              actionItems={summary.actionItems}
+              attendance={summary.attendance}
             />
-            {isGeneratingSummary && <ProgressSummaryCardSkeleton />}
-            {summary && !isGeneratingSummary && (
-              <ProgressSummaryCard 
-                studentName={contact.childName}
-                summaryText={summary.summaryText}
-                actionItems={summary.actionItems}
-                attendance={summary.attendance}
-              />
-            )}
+          )}
         </TabsContent>
       </Tabs>
     </ChatPageLayout>
+  );
+}
+
+function ChatSkeleton() {
+  return (
+    <div className='flex items-center justify-center min-h-screen'>
+      <div>Loading...</div>
+    </div>
+  );
+}
+
+export default async function TeacherChatPage({
+  params,
+}: {
+  params: Promise<{ contactId: string }>;
+}) {
+  const { contactId } = await params;
+  return (
+    <Suspense fallback={<ChatSkeleton />}>
+      <TeacherChatPageComponent contactId={contactId} />
+    </Suspense>
   );
 }

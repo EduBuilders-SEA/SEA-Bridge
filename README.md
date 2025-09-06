@@ -27,6 +27,12 @@ Environment variables: see the "Environment Variables Required" section in `CLAU
 3. Expose the local server via ngrok and copy the HTTPS forwarding URL
 
    ```bash
+   npm run dev:tunnel
+   ```
+
+   or
+
+   ```bash
    ngrok http http://localhost:9002
    ```
 

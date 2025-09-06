@@ -1,28 +1,42 @@
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
 import 'react-phone-number-input/style.css';
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from '@/components/ui/toaster';
+import QueryProvider from '@/components/providers/query-provider';
+import { CompleteProfileGate } from '@/components/complete-profile-gate';
 
 export const metadata: Metadata = {
   title: 'SEA Bridge',
-  description: 'A multilingual parent-teacher communication platform for Southeast Asia.',
+  description:
+    'A multilingual parent-teacher communication platform for Southeast Asia.',
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{
+  // eslint-disable-next-line no-undef
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang='en' suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
+        <link rel='preconnect' href='https://fonts.googleapis.com' />
+        <link
+          rel='preconnect'
+          href='https://fonts.gstatic.com'
+          crossOrigin='anonymous'
+        />
+        <link
+          href='https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=PT+Sans:wght@400;700&display=swap'
+          rel='stylesheet'
+        />
       </head>
-      <body className="font-body antialiased">
-        {children}
-        <Toaster />
+      <body className='font-body antialiased'>
+        <QueryProvider>
+          <CompleteProfileGate />
+          {children}
+          <Toaster />
+        </QueryProvider>
       </body>
     </html>
   );
