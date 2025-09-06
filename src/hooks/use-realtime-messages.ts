@@ -1,8 +1,9 @@
-"use client";
+'use client';
 
-import { useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import type { Database } from '@/lib/supabase/types';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useAuth } from './use-auth';
 
 export function useRealtimeMessages(contactLinkId: string) {
@@ -25,9 +26,17 @@ export function useRealtimeMessages(contactLinkId: string) {
         },
         (payload) => {
           // Update React Query cache instead of local state
-          queryClient.setQueryData(['messages', contactLinkId], (old: any) => 
-            old ? [...old, payload.new] : [payload.new]
-          );
+          queryClient.setQueryData<
+            Database['public']['Tables']['messages']['Row'][]
+          >(['messages', contactLinkId], (old = []) => {
+            const exists = old.some((m) => m.id === (payload.new as any).id);
+            return exists
+              ? old
+              : [
+                  ...old,
+                  payload.new as Database['public']['Tables']['messages']['Row'],
+                ];
+          });
         }
       )
       .subscribe();
