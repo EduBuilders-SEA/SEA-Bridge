@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   --font-body: 'PT Sans', sans-serif;
@@ -117,7 +117,14 @@
   border: none !important;
   height: 100%;
   color: hsl(var(--foreground));
+  caret-color: hsl(var(--foreground));
 }
 .PhoneInputCountrySelect-arrow {
   color: hsl(var(--foreground));
+}
+
+/* Improve placeholder contrast inside PhoneInput */
+.PhoneInput input::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
 }

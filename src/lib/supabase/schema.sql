@@ -20,7 +20,8 @@ create table contacts (
   teacher_id text not null references profiles(id),
   student_name text not null,
   relationship text not null,
-  created_at timestamp with time zone default now()
+  created_at timestamp with time zone default now(),
+  label text
 );
 
 -- Create messages table - all communications between teacher and parent
@@ -92,6 +93,15 @@ create policy "Parents can update contacts where they are the parent"
 
 create policy "Teachers can update contacts where they are the teacher"
   on contacts for update
+  using ( teacher_id = auth.jwt() ->> 'sub' );
+
+-- Allow either side to delete their link (profile completeness enforced by restrictive policy below)
+create policy "Parents can delete contacts where they are the parent"
+  on contacts for delete
+  using ( parent_id = auth.jwt() ->> 'sub' );
+
+create policy "Teachers can delete contacts where they are the teacher"
+  on contacts for delete
   using ( teacher_id = auth.jwt() ->> 'sub' );
 
 -- MESSAGES POLICIES
@@ -245,3 +255,84 @@ create policy "Require complete profile for attendance DELETE"
   for delete
   to authenticated
   using (public.profile_is_complete());
+
+create policy "Users can view profiles of their contacts"
+on public.profiles
+for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.contacts c
+    where
+      (c.parent_id = profiles.id and c.teacher_id = auth.jwt()->>'sub')
+      or
+      (c.teacher_id = profiles.id and c.parent_id = auth.jwt()->>'sub')
+  )
+);
+
+
+
+create or replace function public.create_contact_by_phone(target_phone text, child_name text default null)
+returns public.contacts
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  me_id   text := auth.jwt()->>'sub';
+  me_role text;
+  other_id text;
+  inserted contacts;
+begin
+  select role into me_role from profiles where id = me_id;
+  if me_role is null then raise exception 'Profile not found'; end if;
+
+  if me_role = 'teacher' then
+    if child_name is null or length(child_name)=0 then
+      raise exception 'Child name required';
+    end if;
+    select id into other_id from profiles where phone = target_phone and role = 'parent';
+    if other_id is null then raise exception 'NO_TARGET'; end if;
+
+    insert into contacts(parent_id, teacher_id, student_name, relationship)
+    values (other_id, me_id, child_name, 'parent')
+    returning * into inserted;
+  else
+    select id into other_id from profiles where phone = target_phone and role = 'teacher';
+    if other_id is null then raise exception 'NO_TARGET'; end if;
+
+    insert into contacts(parent_id, teacher_id, student_name, relationship)
+    values (me_id, other_id, 'N/A', 'parent')
+    returning * into inserted;
+  end if;
+
+  return inserted;
+end;
+$$;
+
+grant execute on function public.create_contact_by_phone(text, text) to authenticated;
+
+create or replace function public.delete_contact(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare me text := auth.jwt()->>'sub';
+begin
+  if not public.profile_is_complete() then
+    raise exception 'PROFILE_INCOMPLETE';
+  end if;
+
+  delete from contacts
+  where id = p_id
+    and (parent_id = me or teacher_id = me);
+
+  if not found then
+    raise exception 'NOT_AUTHORIZED_OR_NOT_FOUND';
+  end if;
+end;
+$$;
+
+grant execute on function public.delete_contact(uuid) to authenticated;
