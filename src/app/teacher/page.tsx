@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
-import { useContacts } from '@/hooks/use-contacts';
+import { type ContactWithJoins, useContacts } from '@/hooks/use-contacts';
 import { useProfile } from '@/hooks/use-profile';
 import { type ContactCreate } from '@/lib/schemas/contact';
 import { ArrowLeft, PlusCircle, Search } from 'lucide-react';
@@ -46,12 +46,11 @@ export default function TeacherContactsPage() {
   // Don't show content until auth is verified
   if (!user || !profile) return null;
 
-  const parentContacts = contacts.filter((c) => c.role === 'parent');
-
-  const filteredContacts = (contacts ?? []).filter((contact: any) =>
-    (contact.parent?.name ?? '')
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
+  const filteredContacts = (contacts ?? []).filter(
+    (contact: ContactWithJoins) =>
+      (contact.parent?.name ?? '')
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
   );
 
   const handleAddContact = (newContact: ContactCreate) => {
@@ -97,7 +96,7 @@ export default function TeacherContactsPage() {
             </AddContactForm>
           </div>
           <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6'>
-            {filteredContacts.map((contact: any) => (
+            {filteredContacts.map((contact: ContactWithJoins) => (
               <Link href={`/teacher/chat/${contact.id}`} key={contact.id}>
                 <Card className='p-4 text-center hover:shadow-lg hover:border-primary transition-all duration-300 cursor-pointer flex flex-col items-center'>
                   <Avatar className='w-20 h-20 mb-4'>
