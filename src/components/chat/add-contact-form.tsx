@@ -105,6 +105,7 @@ export function AddContactForm({
                       defaultCountry='US'
                       limitMaxLength
                       placeholder='e.g. +15555555555'
+                      className='flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-base placeholder:text-muted-foreground focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:opacity-50 md:text-sm'
                       value={field.value}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
