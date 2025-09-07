@@ -1,13 +1,14 @@
 
 "use client";
 
-import { Sparkles, Languages, FileText, Loader2, Quote, Volume2, Pause, Play, Download } from 'lucide-react';
+import { Sparkles, FileText, Loader2, Quote, Volume2, Pause, Play, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useEffect, useRef, useState } from 'react';
 import { Slider } from '../ui/slider';
 import Image from 'next/image';
+import { DocumentTranslator } from './document-translator';
 
 type Message = {
   id: string;
@@ -26,6 +27,8 @@ type Message = {
   summary?: string;
   isSummarizing?: boolean;
   fileUrl?: string;
+  s3Key?: string;
+  contactId?: string;
 };
 
 type ChatMessageProps = {
@@ -190,6 +193,18 @@ const MessageContent = ({ message, isSentByCurrentUser }: { message: Message, is
                         </div>
                         <Download className={cn("w-5 h-5", isSentByCurrentUser ? 'text-primary-foreground/80' : 'text-muted-foreground')} />
                     </a>
+                )}
+                {/* Document Translation Feature */}
+                {message.s3Key && message.contactId && !isSentByCurrentUser && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                        <p className={cn("text-xs font-bold mb-2 font-headline", 'text-primary')}>Translate Document</p>
+                        <DocumentTranslator 
+                            s3Key={message.s3Key}
+                            fileName={message.content}
+                            messageId={message.id}
+                            contactId={message.contactId}
+                        />
+                    </div>
                 )}
                  {(message.isSummarizing || message.summary) && (
                     <div className="mt-3 pt-3 border-t border-border/50">
