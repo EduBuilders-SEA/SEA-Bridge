@@ -17,13 +17,13 @@ import {
 } from '@/components/chat/progress-summary-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
-import { useProfile } from '@/hooks/use-profile';
+import { useCurrentProfile } from '@/hooks/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import { contacts } from '@/lib/contacts';
 import { conversation, type Message } from '@/lib/data';
 import type { Attendance } from '@/lib/schemas';
 import { notFound, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState, Suspense } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 
 type DisplayMessage = Message & {
   translatedContent?: string;
@@ -36,11 +36,7 @@ type DisplayMessage = Message & {
   fileUrl?: string;
 };
 
-function TeacherChatPageComponent({
-  contactId,
-}: {
-  contactId: string;
-}) {
+function TeacherChatPageComponent({ contactId }: { contactId: string }) {
   const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -56,7 +52,7 @@ function TeacherChatPageComponent({
   });
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { data: profile, isLoading: profileLoading } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useCurrentProfile();
 
   useEffect(() => {
     if (!authLoading && !profileLoading) {

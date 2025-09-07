@@ -19,7 +19,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
-import { useProfile } from '@/hooks/use-profile';
+import { useCurrentProfile } from '@/hooks/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import { contacts } from '@/lib/contacts';
 import { conversation, documentContent, type Message } from '@/lib/data';
@@ -84,7 +84,7 @@ function ParentChatPageComponent({
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
-  const { data: profile, isLoading: profileLoading } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useCurrentProfile();
 
   const contact = contacts.find(
     (c) => c.id === contactId && c.role === 'teacher'

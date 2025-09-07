@@ -105,7 +105,7 @@ Key AI flows in `/src/ai/flows/`:
 ```typescript
 // ✅ CORRECT: Use custom hooks instead of useEffect
 const { user, loading } = useAuth();
-const { data: profile, isLoading } = useProfile();
+const { data: profile, isLoading } = useCurrentProfile();
 
 // ❌ AVOID: Direct useEffect for auth checks
 useEffect(() => {
@@ -166,7 +166,7 @@ Components follow atomic design principles:
 
 #### Hook Usage Guidelines
 
-- **Authentication**: Use `useAuth()` and `useProfile()` hooks instead of useEffect
+- **Authentication**: Use `useAuth()` and `useCurrentProfile()` hooks instead of useEffect
 - **Data Fetching**: Use TanStack Query hooks instead of useEffect + useState patterns
 - **Realtime**: Use `useRealtimeMessages()` for real-time subscriptions
 - **Hook Order**: Always call all hooks before any early returns to avoid conditional hook errors
@@ -177,7 +177,7 @@ Components follow atomic design principles:
 // ✅ CORRECT: Hooks first, then early returns
 function MyComponent() {
   const { user, loading } = useAuth();
-  const { data: profile } = useProfile();
+  const { data: profile } = useCurrentProfile();
   
   // All useEffect calls here, before any returns
   useEffect(() => { /* logic */ }, []);

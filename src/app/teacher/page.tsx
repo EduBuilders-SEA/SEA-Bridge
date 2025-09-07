@@ -2,24 +2,64 @@
 
 import { AddContactForm } from '@/components/chat/add-contact-form';
 import Logo from '@/components/logo';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/use-auth';
-import { useProfile } from '@/hooks/use-profile';
-import { contacts, type Contact } from '@/lib/contacts';
-import { ArrowLeft, PlusCircle, Search } from 'lucide-react';
+import { type ContactWithJoins, useContacts } from '@/hooks/use-contacts';
+import { useCurrentProfile } from '@/hooks/use-profile';
+import { type ContactCreate } from '@/lib/schemas/contact';
+import {
+  ArrowLeft,
+  PencilLine,
+  PlusCircle,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function TeacherContactsPage() {
+  const {
+    contacts,
+    createContactAsync,
+    updateContactAsync,
+    deleteContactAsync,
+  } = useContacts();
   const [searchTerm, setSearchTerm] = useState('');
-  const [allContacts, setAllContacts] = useState(contacts);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { user, loading: authLoading } = useAuth();
-  const { data: profile, isLoading: profileLoading } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useCurrentProfile();
   const router = useRouter();
 
   // Handle auth redirects on client side
@@ -33,7 +73,6 @@ export default function TeacherContactsPage() {
     }
   }, [user, profile, authLoading, profileLoading, router]);
 
-
   // Show loading state
   if (authLoading || profileLoading) {
     return (
@@ -46,20 +85,35 @@ export default function TeacherContactsPage() {
   // Don't show content until auth is verified
   if (!user || !profile) return null;
 
-
-  const parentContacts = allContacts.filter((c) => c.role === 'parent');
-
-  const filteredContacts = parentContacts.filter((contact) =>
-    contact.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredContacts = (contacts ?? []).filter(
+    (contact: ContactWithJoins) =>
+      (contact.parent?.name ?? '')
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
   );
 
-  const handleAddContact = (newContact: Omit<Contact, 'id' | 'avatarUrl'>) => {
-    const newContactWithId: Contact = {
-      ...newContact,
-      id: String(allContacts.length + 1),
-      avatarUrl: `https://placehold.co/100x100.png`,
-    };
-    setAllContacts((prev) => [...prev, newContactWithId]);
+  const handleAddContact = (newContact: ContactCreate) => {
+    return createContactAsync(newContact);
+  };
+
+  const openEdit = (contact: ContactWithJoins) => {
+    setEditingId(contact.id);
+    setEditingName(contact.student_name ?? '');
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    await updateContactAsync({ id: editingId, student_name: editingName });
+    setEditOpen(false);
+    setEditingId(null);
+    setEditingName('');
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
+    await deleteContactAsync(confirmDeleteId);
+    setConfirmDeleteId(null);
   };
 
   return (
@@ -101,29 +155,113 @@ export default function TeacherContactsPage() {
             </AddContactForm>
           </div>
           <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6'>
-            {filteredContacts.map((contact) => (
+            {filteredContacts.map((contact: ContactWithJoins) => (
               <Link href={`/teacher/chat/${contact.id}`} key={contact.id}>
                 <Card className='p-4 text-center hover:shadow-lg hover:border-primary transition-all duration-300 cursor-pointer flex flex-col items-center'>
                   <Avatar className='w-20 h-20 mb-4'>
                     <AvatarImage
-                      src={contact.avatarUrl}
-                      alt={contact.name}
+                      src={'https://placehold.co/100x100.png'}
+                      alt={contact.parent?.name ?? 'Parent'}
                       data-ai-hint='parent portrait'
                     />
-                    <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
+                    <AvatarFallback>
+                      {(contact.parent?.name ?? '?').charAt(0)}
+                    </AvatarFallback>
                   </Avatar>
                   <h3 className='font-headline font-semibold'>
-                    {contact.name}
+                    {contact.parent?.name ?? contact.parent?.phone ?? 'Pending'}
                   </h3>
                   <p className='text-sm text-muted-foreground'>
-                    Parent of {contact.childName}
+                    Parent of {contact.student_name}
                   </p>
+                  <div className='mt-4 flex gap-2'>
+                    <TooltipProvider delayDuration={0}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant='outline'
+                            size='icon'
+                            aria-label='Edit contact'
+                            onClick={(e) => {
+                              e.preventDefault();
+                              openEdit(contact);
+                            }}
+                          >
+                            <PencilLine className='w-4 h-4' />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Edit</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant='destructive'
+                            size='icon'
+                            aria-label='Remove contact'
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setConfirmDeleteId(contact.id);
+                            }}
+                          >
+                            <Trash2 className='w-4 h-4' />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Remove</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </Card>
               </Link>
             ))}
           </div>
         </div>
       </main>
+      {/* Edit dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle>Edit Student Name</DialogTitle>
+            <DialogDescription>
+              Update the child's name for this contact.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={editingName}
+            onChange={(e) => setEditingName(e.target.value)}
+            placeholder='e.g. John Doe'
+          />
+          <DialogFooter>
+            <Button variant='ghost' onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveEdit}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDeleteId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove contact?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the parent-teacher link. Messages are not
+              deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

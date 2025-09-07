@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useRef, useState } from 'react';
 import { useOnboardingMutations } from './use-onboarding-mutations';
 import { useRecaptcha } from './use-recaptcha';
+import { createClient } from '@/lib/supabase/client';
 
 type OnboardingStep = 'phone' | 'otp';
 
@@ -18,6 +19,7 @@ export function useOnboardingFlow(role: string) {
   const { toast } = useToast();
   const mutations = useOnboardingMutations();
   const { initializeRecaptcha, clearRecaptcha } = useRecaptcha();
+  const supabase = createClient();
 
   const [step, setStep] = useState<OnboardingStep>('phone');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -136,15 +138,21 @@ export function useOnboardingFlow(role: string) {
 
         if (user) {
           // Post-OTP: safe to check DB with authenticated token
-          const existing = await mutations.checkExistingUser.mutateAsync(
-            formData.phoneNumber
-          );
+          const { data: existing } = await supabase
+          .from('profiles')
+          .select('id, name, role, phone')
+          .eq('phone', formData.phoneNumber)
+          .maybeSingle();
 
           if (existing) {
-            await mutations.updateExistingProfile.mutateAsync({
-              uid: user.uid,
-              phone: formData.phoneNumber,
-            });
+            // Why it matters: RLS uses auth.jwt()->>'sub' = profiles.id. If the row was created earlier with a different uid (emulator vs prod, old bug that inserted before OTP, data migration, or mixed environments), the current user would sign in, but all profile/contacts/messages queries would fail RLS because id ≠ current uid.
+            if (existing.id !== user.uid) {
+              // Move ownership of the phone to this uid; allow 23505-safe path
+              await mutations.updateExistingProfile.mutateAsync({
+                uid: user.uid,
+                phone: formData.phoneNumber,
+              });
+            }
 
             if (existing.role !== role) {
               toast({
@@ -154,19 +162,23 @@ export function useOnboardingFlow(role: string) {
             } else {
               toast({
                 title: 'Welcome back!',
-                description: `Signed in as ${existing.name}`,
+                description: existing.name
+                  ? `Signed in as ${existing.name}`
+                  : 'Signed in.',
               });
             }
             router.push(`/${existing.role}`);
-          } else {
-            await mutations.createProfile.mutateAsync({
-              uid: user.uid,
-              role,
-              phone: formData.phoneNumber,
-              name: null,
-            });
-            router.push(`/${role}`);
+            return;
           }
+
+          // No row by phone → create fresh
+          await mutations.createProfile.mutateAsync({
+            uid: user.uid,
+            role,
+            phone: formData.phoneNumber,
+            name: null,
+          });
+          router.push(`/${role}`);
         }
       } catch (_error) {
         // Error already handled in mutations
