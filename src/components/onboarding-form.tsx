@@ -22,25 +22,22 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { useOnboardingFlow } from '@/hooks/use-onboarding-flow';
 import { useProfile } from '@/hooks/use-profile';
+import {
+  OtpSchema,
+  PhoneSchema,
+  type OtpForm,
+  type PhoneForm,
+} from '@/lib/schemas';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
-import { z } from 'zod';
+import PhoneInput from 'react-phone-number-input';
 
-const phoneFormSchema = z.object({
-  phoneNumber: z.string().refine(isValidPhoneNumber, {
-    message: 'Please enter a valid phone number.',
-  }),
-});
-
-
-const otpFormSchema = z.object({
-  otp: z.string().min(6, { message: 'OTP must be 6 digits.' }),
-});
+const phoneFormSchema = PhoneSchema;
+const otpFormSchema = OtpSchema;
 
 export default function OnboardingForm() {
   const router = useRouter();
@@ -54,11 +51,7 @@ export default function OnboardingForm() {
     step,
     formData,
     isSubmitting,
-    handlers: {
-      handlePhoneSubmit,
-      handleOtpSubmit,
-      handleBackToPhone,
-    },
+    handlers: { handlePhoneSubmit, handleOtpSubmit, handleBackToPhone },
     getStepTitle,
     getStepDescription,
   } = useOnboardingFlow(role ?? '');
@@ -73,15 +66,14 @@ export default function OnboardingForm() {
     }
   }, [user, profile, loading, profileLoading, router]);
 
-  const phoneForm = useForm<z.infer<typeof phoneFormSchema>>({
+  const phoneForm = useForm<PhoneForm>({
     resolver: zodResolver(phoneFormSchema),
     defaultValues: {
       phoneNumber: '',
     },
   });
 
-
-  const otpForm = useForm<z.infer<typeof otpFormSchema>>({
+  const otpForm = useForm<OtpForm>({
     resolver: zodResolver(otpFormSchema),
     defaultValues: {
       otp: '',
@@ -89,12 +81,11 @@ export default function OnboardingForm() {
   });
 
   // Form submission handlers using custom hook handlers
-  const onPhoneSubmit = (values: z.infer<typeof phoneFormSchema>) => {
+  const onPhoneSubmit = (values: PhoneForm) => {
     handlePhoneSubmit(values.phoneNumber);
   };
 
-
-  const onOtpSubmit = (values: z.infer<typeof otpFormSchema>) => {
+  const onOtpSubmit = (values: OtpForm) => {
     handleOtpSubmit(values.otp);
   };
 
@@ -144,7 +135,7 @@ export default function OnboardingForm() {
                   <FormField
                     control={phoneForm.control}
                     name='phoneNumber'
-                    render={({ field }) => (
+                    render={({ field: _field }) => (
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>

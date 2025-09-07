@@ -7,16 +7,17 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
+import { useContacts } from '@/hooks/use-contacts';
 import { useProfile } from '@/hooks/use-profile';
-import { contacts, type Contact } from '@/lib/contacts';
+import { type ContactCreate } from '@/lib/schemas/contact';
 import { ArrowLeft, PlusCircle, Search } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function TeacherContactsPage() {
+  const { contacts, createContact } = useContacts();
   const [searchTerm, setSearchTerm] = useState('');
-  const [allContacts, setAllContacts] = useState(contacts);
 
   const { user, loading: authLoading } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfile();
@@ -33,7 +34,6 @@ export default function TeacherContactsPage() {
     }
   }, [user, profile, authLoading, profileLoading, router]);
 
-
   // Show loading state
   if (authLoading || profileLoading) {
     return (
@@ -46,20 +46,16 @@ export default function TeacherContactsPage() {
   // Don't show content until auth is verified
   if (!user || !profile) return null;
 
+  const parentContacts = contacts.filter((c) => c.role === 'parent');
 
-  const parentContacts = allContacts.filter((c) => c.role === 'parent');
-
-  const filteredContacts = parentContacts.filter((contact) =>
-    contact.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredContacts = (contacts ?? []).filter((contact: any) =>
+    (contact.parent?.name ?? '')
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
   );
 
-  const handleAddContact = (newContact: Omit<Contact, 'id' | 'avatarUrl'>) => {
-    const newContactWithId: Contact = {
-      ...newContact,
-      id: String(allContacts.length + 1),
-      avatarUrl: `https://placehold.co/100x100.png`,
-    };
-    setAllContacts((prev) => [...prev, newContactWithId]);
+  const handleAddContact = (newContact: ContactCreate) => {
+    createContact(newContact);
   };
 
   return (
@@ -101,22 +97,24 @@ export default function TeacherContactsPage() {
             </AddContactForm>
           </div>
           <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6'>
-            {filteredContacts.map((contact) => (
+            {filteredContacts.map((contact: any) => (
               <Link href={`/teacher/chat/${contact.id}`} key={contact.id}>
                 <Card className='p-4 text-center hover:shadow-lg hover:border-primary transition-all duration-300 cursor-pointer flex flex-col items-center'>
                   <Avatar className='w-20 h-20 mb-4'>
                     <AvatarImage
-                      src={contact.avatarUrl}
-                      alt={contact.name}
+                      src={'https://placehold.co/100x100.png'}
+                      alt={contact.parent?.name ?? 'Parent'}
                       data-ai-hint='parent portrait'
                     />
-                    <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
+                    <AvatarFallback>
+                      {(contact.parent?.name ?? '?').charAt(0)}
+                    </AvatarFallback>
                   </Avatar>
                   <h3 className='font-headline font-semibold'>
-                    {contact.name}
+                    {contact.parent?.name ?? 'Unknown'}
                   </h3>
                   <p className='text-sm text-muted-foreground'>
-                    Parent of {contact.childName}
+                    Parent of {contact.student_name}
                   </p>
                 </Card>
               </Link>

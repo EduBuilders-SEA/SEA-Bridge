@@ -9,21 +9,6 @@ export function useOnboardingMutations() {
   const supabase = createClient();
   const { toast } = useToast();
 
-  const checkExistingUser = useMutation({
-    mutationFn: async (phoneNumber: string) => {
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('name, role')
-        .eq('phone', phoneNumber)
-        .single();
-
-      return existingProfile;
-    },
-    onError: (error) => {
-      console.warn('Error checking existing user:', error);
-    },
-  });
-
   const sendOTP = useMutation({
     mutationFn: async ({ phoneNumber, recaptchaVerifier }: { 
       phoneNumber: string; 
@@ -129,7 +114,6 @@ export function useOnboardingMutations() {
   });
 
   return {
-    checkExistingUser,
     sendOTP,
     verifyOTP,
     createProfile,
