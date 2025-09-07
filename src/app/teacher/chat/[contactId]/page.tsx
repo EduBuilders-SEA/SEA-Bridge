@@ -1,5 +1,6 @@
 'use client';
 
+import { uploadDocument } from '@/app/actions/document-translation';
 import { chunkMessageForSms } from '@/ai/flows/chunk-message-for-sms';
 import {
   summarizeConversation,
@@ -34,6 +35,8 @@ type DisplayMessage = Message & {
   isTranscribing?: boolean;
   audioDataUri?: string;
   fileUrl?: string;
+  s3Key?: string;
+  contactId?: string;
 };
 
 function TeacherChatPageComponent({ contactId }: { contactId: string }) {
@@ -205,9 +208,12 @@ function TeacherChatPageComponent({ contactId }: { contactId: string }) {
     }
   };
 
-  const handleSendFile = (file: File) => {
+  const handleSendFile = async (file: File) => {
+    const newId = String(messages.length + 1);
+    
+    // First add the message with loading state
     const newMessage: DisplayMessage = {
-      id: String(messages.length + 1),
+      id: newId,
       sender: 'teacher',
       content: file.name,
       timestamp: new Date().toLocaleTimeString([], {
@@ -216,9 +222,35 @@ function TeacherChatPageComponent({ contactId }: { contactId: string }) {
       }),
       type: 'document',
       originalLanguage: 'English',
-      fileUrl: URL.createObjectURL(file), // Create a temporary URL for the file
+      fileUrl: URL.createObjectURL(file), // Temporary local URL for preview
+      contactId: contactId,
     };
     addMessage(newMessage);
+
+    try {
+      // Upload to S3 in the background
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('contactId', contactId);
+      
+      const uploadResult = await uploadDocument(formData);
+      
+      // Update the message with S3 key for translation capability
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === newId
+            ? { ...m, s3Key: uploadResult.key }
+            : m
+        )
+      );
+    } catch (error) {
+      console.error('Failed to upload file to S3:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Upload Failed',
+        description: 'Could not upload the file. Translation will not be available.',
+      });
+    }
   };
 
   const generateSummary = async (currentAttendance: Attendance) => {
