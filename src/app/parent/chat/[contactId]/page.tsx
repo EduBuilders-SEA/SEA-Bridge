@@ -19,25 +19,14 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
+import { useMessages, type UIMessage } from '@/hooks/use-messages';
+import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
 import { useCurrentProfile } from '@/hooks/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import { contacts } from '@/lib/contacts';
-import { conversation, documentContent, type Message } from '@/lib/data';
+import { documentContent } from '@/lib/data';
 import { notFound, useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
-
-type DisplayMessage = Message & {
-  translatedContent?: string;
-  isTranslating?: boolean;
-  simplifiedContent?: string;
-  isSimplifying?: boolean;
-  transcription?: string;
-  isTranscribing?: boolean;
-  audioDataUri?: string;
-  summary?: string;
-  isSummarizing?: boolean;
-  fileUrl?: string;
-};
 
 function ChatSkeleton() {
   return (
@@ -74,13 +63,31 @@ function ParentChatPageComponent({
   const searchParams = useSearchParams();
   const router = useRouter();
   const lang = searchParams.get('lang');
+  
+  // Use real data hooks instead of mock state
+  const { messages, sendMessage, isLoading } = useMessages(contactId);
+  useRealtimeMessages(contactId);
+  
   const [parentName, setParentName] = useState('Parent');
   const [summary, setSummary] = useState<SummarizeConversationOutput | null>(
     null
   );
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
-  const [parentLanguage, setParentLanguage] = useState(lang ?? 'English');
+  const [parentLanguage] = useState(lang ?? 'English');
+  
+  // Convert to local state for AI features (translation, simplification, etc.)
+  const [enhancedMessages, setEnhancedMessages] = useState<(UIMessage & {
+    translatedContent?: string;
+    isTranslating?: boolean;
+    simplifiedContent?: string;
+    isSimplifying?: boolean;
+    transcription?: string;
+    isTranscribing?: boolean;
+    audioDataUri?: string;
+    summary?: string;
+    isSummarizing?: boolean;
+  })[]>([]);
+  
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
@@ -89,6 +96,11 @@ function ParentChatPageComponent({
   const contact = contacts.find(
     (c) => c.id === contactId && c.role === 'teacher'
   );
+
+  // Sync real messages with enhanced messages for AI features
+  useEffect(() => {
+    setEnhancedMessages(messages.map(msg => ({ ...msg })));
+  }, [messages]);
 
   // Move ALL useEffect hooks here - BEFORE any early returns
   useEffect(() => {
@@ -107,14 +119,14 @@ function ParentChatPageComponent({
     const autoTranslateMessages = async () => {
       if (parentLanguage === 'English') return;
 
-      const messagesToTranslate = messages.filter(
+      const messagesToTranslate = enhancedMessages.filter(
         (m) =>
           m.sender === 'teacher' && m.type === 'text' && !m.translatedContent
       );
 
       if (messagesToTranslate.length === 0) return;
 
-      setMessages((prev) =>
+      setEnhancedMessages((prev) =>
         prev.map((m) =>
           messagesToTranslate.find((mt) => mt.id === m.id)
             ? { ...m, isTranslating: true }
@@ -135,7 +147,7 @@ function ParentChatPageComponent({
 
         const translations = await Promise.all(translationPromises);
 
-        setMessages((prev) =>
+        setEnhancedMessages((prev) =>
           prev.map((m) => {
             const translation = translations.find((t) => t.id === m.id);
             return translation
@@ -154,7 +166,7 @@ function ParentChatPageComponent({
           title: 'Error',
           description: 'Could not automatically translate messages.',
         });
-        setMessages((prev) =>
+        setEnhancedMessages((prev) =>
           prev.map((m) =>
             messagesToTranslate.find((mt) => mt.id === m.id)
               ? { ...m, isTranslating: false }
@@ -164,16 +176,16 @@ function ParentChatPageComponent({
       }
     };
     autoTranslateMessages();
-  }, [parentLanguage]);
+  }, [parentLanguage, enhancedMessages, toast]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [enhancedMessages]);
 
   // NOW you can have early returns
-  if (authLoading || profileLoading) {
+  if (authLoading || profileLoading || isLoading) {
     return <ChatSkeleton />;
   }
 
@@ -191,60 +203,31 @@ function ParentChatPageComponent({
     role: 'Parent',
   };
 
-  const addMessage = (message: DisplayMessage) => {
-    setMessages((prev) => [...prev, message]);
-  };
-
   const handleSendMessage = (content: string) => {
-    const newMessage: DisplayMessage = {
-      id: String(messages.length + 1),
-      sender: 'parent',
+    sendMessage({
       content,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      type: 'text',
-      originalLanguage: parentLanguage,
-    };
-    addMessage(newMessage);
+      message_type: 'text',
+    });
   };
 
   const handleSendVoice = async (audioDataUri: string) => {
-    const newId = String(messages.length + 1);
-    const newMessage: DisplayMessage = {
-      id: newId,
-      sender: 'parent',
-      content: 'Voice note', // Placeholder content
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      type: 'voice',
-      originalLanguage: parentLanguage,
-      isTranscribing: true,
-      audioDataUri,
-    };
-    addMessage(newMessage);
+    // Send initial voice message while processing
+    sendMessage({
+      content: 'Voice note',
+      message_type: 'voice',
+    });
 
     try {
       const result = await transcribeAndTranslate({
         audioDataUri,
         targetLanguage: 'English', // Teacher's language is assumed to be English for now
       });
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === newId
-            ? {
-                ...m,
-                isTranscribing: false,
-                content: result.transcription, // Use transcription as main content
-                transcription: result.transcription,
-                translatedContent: result.translation,
-              }
-            : m
-        )
-      );
+      
+      // Send the transcribed content as a follow-up
+      sendMessage({
+        content: result.transcription,
+        message_type: 'voice',
+      });
     } catch (error) {
       console.error('Failed to transcribe voice note:', error);
       toast({
@@ -252,46 +235,29 @@ function ParentChatPageComponent({
         title: 'Error',
         description: 'Could not process the voice note. Please try again.',
       });
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === newId
-            ? {
-                ...m,
-                isTranscribing: false,
-                content: 'Error processing voice note',
-              }
-            : m
-        )
-      );
     }
   };
 
   const handleSendFile = (file: File) => {
-    const newMessage: DisplayMessage = {
-      id: String(messages.length + 1),
-      sender: 'parent',
+    // For now, send the file name. In a real implementation, 
+    // you would upload to Supabase Storage first and get the URL
+    sendMessage({
       content: file.name,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      type: 'document',
-      originalLanguage: parentLanguage,
-      fileUrl: URL.createObjectURL(file), // Create a temporary URL for the file
-    };
-    addMessage(newMessage);
+      message_type: 'document',
+      file_url: URL.createObjectURL(file), // Temporary URL for demo
+    });
   };
 
   const handleSimplify = async (messageId: string) => {
-    const message = messages.find((m) => m.id === messageId);
+    const message = enhancedMessages.find((m) => m.id === messageId);
     if (!message || message.simplifiedContent) return;
 
-    setMessages((prev) =>
+    setEnhancedMessages((prev) =>
       prev.map((m) => (m.id === messageId ? { ...m, isSimplifying: true } : m))
     );
     try {
       const result = await simplifyMessage({ content: message.content });
-      setMessages((prev) =>
+      setEnhancedMessages((prev) =>
         prev.map((m) =>
           m.id === messageId
             ? {
@@ -309,7 +275,7 @@ function ParentChatPageComponent({
         title: 'Error',
         description: 'Could not simplify the message. Please try again.',
       });
-      setMessages((prev) =>
+      setEnhancedMessages((prev) =>
         prev.map((m) =>
           m.id === messageId ? { ...m, isSimplifying: false } : m
         )
@@ -318,16 +284,16 @@ function ParentChatPageComponent({
   };
 
   const handleSummarize = async (messageId: string) => {
-    const message = messages.find((m) => m.id === messageId);
+    const message = enhancedMessages.find((m) => m.id === messageId);
     if (!message || message.summary) return;
 
-    setMessages((prev) =>
+    setEnhancedMessages((prev) =>
       prev.map((m) => (m.id === messageId ? { ...m, isSummarizing: true } : m))
     );
     try {
       // In a real app, you would fetch the document content. Here, we use mock data.
       const result = await summarizeDocument({ documentContent });
-      setMessages((prev) =>
+      setEnhancedMessages((prev) =>
         prev.map((m) =>
           m.id === messageId
             ? { ...m, summary: result.summary, isSummarizing: false }
@@ -341,7 +307,7 @@ function ParentChatPageComponent({
         title: 'Error',
         description: 'Could not summarize the document. Please try again.',
       });
-      setMessages((prev) =>
+      setEnhancedMessages((prev) =>
         prev.map((m) =>
           m.id === messageId ? { ...m, isSummarizing: false } : m
         )
@@ -353,7 +319,7 @@ function ParentChatPageComponent({
     if (tab === 'summary' && !summary && !isGeneratingSummary) {
       setIsGeneratingSummary(true);
       try {
-        const conversationToSummarize = messages.map(({ sender, content }) => ({
+        const conversationToSummarize = enhancedMessages.map(({ sender, content }) => ({
           sender,
           content,
         }));
@@ -406,7 +372,7 @@ function ParentChatPageComponent({
             className='flex-1 space-y-4 overflow-y-auto p-4 md:p-6'
             ref={scrollAreaRef}
           >
-            {messages.map((msg) => (
+            {enhancedMessages.map((msg) => (
               <ChatMessage
                 key={msg.id}
                 message={msg}
