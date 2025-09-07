@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # Main application
+  app:
+    build: .
+    container_name: sea-bridge-app
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+      - localstack
+    networks:
+      - sea-bridge-network
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:13-alpine
+    container_name: sea-bridge-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sea_bridge}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PB:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+    networks:
+      - sea-bridge-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sea_bridge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching
+  redis:
+    image: redis:6-alpine
+    container_name: sea-bridge-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sea-bridge-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # LocalStack for local AWS services
+  localstack:
+    container_name: sea-bridge-localstack
+    image: localstack/localstack:0.14.0
+    ports:
+      - "4566:4566"            # LocalStack Gateway
+      - "4572:4572"            # S3
+      - "4576:4576"            # SQS
+    environment:
+      - SERVICES=s3,sqs
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - HOSTNAME=localstack
+      - HOSTNAME_EXTERNAL=localstack
+      - DEFAULT_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_OUTPUT=json
+    volumes:
+      - "${TMPDIR:-/tmp/localstack}:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - sea-bridge-network
+
+  # Adminer for database management (optional)
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+    depends_on:
+      - postgres
+    networks:
+      - sea-bridge-network
+
+  # Redis Commander for Redis management (optional)
+  redis-commander:
+    container_name: redis-commander
+    hostname: redis-commander
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - sea-bridge-network
+
+networks:
+  sea-bridge-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
