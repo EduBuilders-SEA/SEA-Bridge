@@ -22,7 +22,7 @@ SEA Bridge is a multilingual parent-teacher communication platform designed for 
 - **State Management**: TanStack Query (React Query) for server state, minimal client state
 - **Authentication**: Firebase Auth for phone verification + reCAPTCHA, integrated as third-party provider
 - **Auth Protection**: Next.js middleware for route protection (no useEffect auth checks)
-- **AI Integration**: Google Genkit with Gemini 2.5 Flash model
+- **AI Integration**: Hybrid model using Google Genkit (Gemini) and **AWS Bedrock (Sea Lion)**
 - **Database & Backend**: Supabase (PostgreSQL, Realtime, Storage) with Firebase Auth integration
 - **Phone Integration**: React Phone Number Input with international support
 
@@ -56,17 +56,33 @@ The application uses a simplified 4-table structure:
 - `messages` - All communications linked via contact_link_id, with variants JSONB for translations/AI processing
 - `attendance` - Student attendance records with teacher write access, parent read access
 
-### AI Integration (Genkit Flows)
+### AI Integration (Hybrid Model)
 
-All AI functionality is implemented as **Server Actions** using Genkit flows:
+The project uses a hybrid AI architecture to leverage the best models for specific tasks.
 
-Key AI flows in `/src/ai/flows/`:
+#### Core SMS AI (AWS Bedrock + Sea Lion)
 
-- `translate-message.ts` - Message translation with entity preservation
-- `simplify-message.ts` - Content simplification for accessibility
-- `transcribe-and-translate.ts` - Voice note processing
-- `summarize-conversation.ts` - Progress summaries from message history
-- `chunk-message-for-sms.ts` - SMS chunking for international delivery
+For the critical SMS notification feature, we use AWS Bedrock for its specialized models and direct integration with our notification pipeline.
+
+- **Provider**: AWS Bedrock
+- **Model**: Sea Lion (for context-aware SEA language translation and smart chunking)
+- **Implementation**: Direct AWS SDK integration within server-side logic (e.g., BullMQ workers). See `src/lib/aws/bedrock-client.ts`.
+- **Key Features**:
+    - `translateForSMS`: Translates messages for SMS delivery.
+    - `smartChunkForSMS`: Splits messages into context-aware chunks for SMS.
+
+#### General In-App AI (Google Genkit + Gemini)
+
+For general in-app AI features, we use Google Genkit for its rapid development and structured flow management.
+
+- **Provider**: Google Genkit
+- **Model**: Gemini 2.5 Flash
+- **Implementation**: Genkit flows invoked via Server Actions.
+- **Key Flows** in `/src/ai/flows/`:
+    - `translate-message.ts` - In-app message translation.
+    - `simplify-message.ts` - Content simplification.
+    - `transcribe-and-translate.ts` - Voice note processing.
+    - `summarize-conversation.ts` - Chat summaries.
 
 **Important**: AI flows are designed to preserve critical information (dates, names, amounts, locations) during translation and processing.
 
@@ -141,6 +157,15 @@ Components follow atomic design principles:
 - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key  
 - `GOOGLE_GENAI_API_KEY` - Google AI API key for Genkit
+
+**AWS Services (Bedrock & SNS)**
+- `AWS_ACCESS_KEY_ID` - AWS Access Key for SDK authentication
+- `AWS_SECRET_ACCESS_KEY` - AWS Secret Key for SDK authentication
+- `AWS_BEDROCK_REGION` - AWS region for Bedrock service
+- `SEA_LION_MODEL_ID` - The model identifier for Sea Lion on Bedrock
+- `AWS_SNS_REGION` - AWS region for SNS service
+- `SNS_DELIVERY_STATUS_ROLE` - IAM role ARN for SNS delivery status logging
+- `SNS_USAGE_REPORT_BUCKET` - S3 bucket for SNS usage reports
 
 **Firebase Auth (Third-party Integration)**
 - `NEXT_PUBLIC_FIREBASE_API_KEY` - Firebase project API key
