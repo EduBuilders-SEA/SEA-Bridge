@@ -4,7 +4,7 @@ import type { Tables } from '@/lib/supabase/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './use-auth';
 
-export type ContactWithJoins = Tables<'contacts'> & {
+export type ContactWithJoins = (Tables<'contacts'> & { label?: string }) & {
   parent: Pick<Tables<'profiles'>, 'id' | 'name' | 'phone'> | null;
   teacher: Pick<Tables<'profiles'>, 'id' | 'name' | 'phone'> | null;
 };
@@ -63,10 +63,54 @@ export function useContacts() {
     },
   });
 
+  const updateContactMutation = useMutation({
+    mutationFn: async ({
+      id,
+      student_name,
+      label,
+    }: {
+      id: string;
+      student_name?: string;
+      label?: string;
+    }) => {
+      const { data, error } = await supabase
+        .from('contacts')
+        .update({ student_name, label })
+        .eq('id', id)
+        .select(
+          `
+          *,
+          parent:parent_id(id, name, phone),
+          teacher:teacher_id(id, name, phone)
+        `
+        )
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts', user?.uid] });
+    },
+  });
+
+  const deleteContactMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc('delete_contact', { p_id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts', user?.uid] });
+    },
+  });
+
   return {
     contacts: contactsQuery.data ?? [],
     isLoading: contactsQuery.isLoading,
     createContact: createContactMutation.mutate,
     createContactAsync: createContactMutation.mutateAsync,
+    updateContact: updateContactMutation.mutate,
+    updateContactAsync: updateContactMutation.mutateAsync,
+    deleteContact: deleteContactMutation.mutate,
+    deleteContactAsync: deleteContactMutation.mutateAsync,
   };
 }

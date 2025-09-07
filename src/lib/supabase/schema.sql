@@ -20,7 +20,8 @@ create table contacts (
   teacher_id text not null references profiles(id),
   student_name text not null,
   relationship text not null,
-  created_at timestamp with time zone default now()
+  created_at timestamp with time zone default now(),
+  label text
 );
 
 -- Create messages table - all communications between teacher and parent
@@ -92,6 +93,15 @@ create policy "Parents can update contacts where they are the parent"
 
 create policy "Teachers can update contacts where they are the teacher"
   on contacts for update
+  using ( teacher_id = auth.jwt() ->> 'sub' );
+
+-- Allow either side to delete their link (profile completeness enforced by restrictive policy below)
+create policy "Parents can delete contacts where they are the parent"
+  on contacts for delete
+  using ( parent_id = auth.jwt() ->> 'sub' );
+
+create policy "Teachers can delete contacts where they are the teacher"
+  on contacts for delete
   using ( teacher_id = auth.jwt() ->> 'sub' );
 
 -- MESSAGES POLICIES
@@ -302,3 +312,27 @@ end;
 $$;
 
 grant execute on function public.create_contact_by_phone(text, text) to authenticated;
+
+create or replace function public.delete_contact(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare me text := auth.jwt()->>'sub';
+begin
+  if not public.profile_is_complete() then
+    raise exception 'PROFILE_INCOMPLETE';
+  end if;
+
+  delete from contacts
+  where id = p_id
+    and (parent_id = me or teacher_id = me);
+
+  if not found then
+    raise exception 'NOT_AUTHORIZED_OR_NOT_FOUND';
+  end if;
+end;
+$$;
+
+grant execute on function public.delete_contact(uuid) to authenticated;
