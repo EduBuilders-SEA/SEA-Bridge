@@ -336,3 +336,91 @@ end;
 $$;
 
 grant execute on function public.delete_contact(uuid) to authenticated;
+
+-- ================================
+-- AUTONOMOUS FAMILY NETWORK ACTIVATION TABLES
+-- ================================
+
+-- Family network data extracted from conversations
+CREATE TABLE family_networks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  contact_link_id UUID NOT NULL REFERENCES contacts(id),
+  family_data JSONB NOT NULL DEFAULT '{}'::jsonb, -- {"members": [{"name": "Lola Rosa", "role": "grandmother", "phone": "+63...", "language": "ceb"}]}
+  cultural_context JSONB NOT NULL DEFAULT '{}'::jsonb, -- {"decision_maker": "Lola Rosa"}
+  extracted_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Autonomous intervention logs
+CREATE TABLE interventions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  contact_link_id UUID NOT NULL REFERENCES contacts(id),
+  trigger_reason TEXT NOT NULL,
+  risk_level TEXT NOT NULL CHECK (risk_level IN ('low', 'medium', 'high')),
+  target_family_member JSONB NOT NULL, -- {"name": "Lola Rosa", "role": "grandmother"}
+  message_content TEXT NOT NULL,
+  delivery_method TEXT NOT NULL CHECK (delivery_method IN ('sms')) DEFAULT 'sms',
+  delivery_status TEXT NOT NULL DEFAULT 'pending' CHECK (delivery_status IN ('pending', 'sent', 'failed', 'delivered', 'replied')),
+  response_content TEXT,
+  response_received_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS on new tables
+ALTER TABLE family_networks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE interventions ENABLE ROW LEVEL SECURITY;
+
+-- FAMILY_NETWORKS POLICIES
+-- Teachers can view family networks for their students
+CREATE POLICY "Teachers can view family networks for their students"
+  ON family_networks FOR SELECT
+  USING ( 
+    EXISTS (
+      SELECT 1 FROM contacts 
+      WHERE contacts.id = family_networks.contact_link_id 
+      AND contacts.teacher_id = auth.jwt() ->> 'sub'
+    )
+  );
+
+-- Teachers can create/update family networks for their students
+CREATE POLICY "Teachers can create family networks for their students"
+  ON family_networks FOR INSERT
+  WITH CHECK ( 
+    EXISTS (
+      SELECT 1 FROM contacts 
+      WHERE contacts.id = family_networks.contact_link_id 
+      AND contacts.teacher_id = auth.jwt() ->> 'sub'
+    )
+  );
+
+CREATE POLICY "Teachers can update family networks for their students"
+  ON family_networks FOR UPDATE
+  USING ( 
+    EXISTS (
+      SELECT 1 FROM contacts 
+      WHERE contacts.id = family_networks.contact_link_id 
+      AND contacts.teacher_id = auth.jwt() ->> 'sub'
+    )
+  );
+
+-- INTERVENTIONS POLICIES
+-- Teachers can view interventions for their students
+CREATE POLICY "Teachers can view interventions for their students"
+  ON interventions FOR SELECT
+  USING ( 
+    EXISTS (
+      SELECT 1 FROM contacts 
+      WHERE contacts.id = interventions.contact_link_id 
+      AND contacts.teacher_id = auth.jwt() ->> 'sub'
+    )
+  );
+
+-- System can create interventions (will be handled by Edge Functions with service key)
+CREATE POLICY "System can create interventions"
+  ON interventions FOR INSERT
+  WITH CHECK (true);
+
+-- System can update intervention status
+CREATE POLICY "System can update interventions"
+  ON interventions FOR UPDATE
+  USING (true);

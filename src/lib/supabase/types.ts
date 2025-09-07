@@ -59,10 +59,96 @@ export type Database = {
           },
         ]
       }
+      family_networks: {
+        Row: {
+          contact_link_id: string
+          cultural_context: Json | null
+          extracted_at: string | null
+          family_data: Json | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          contact_link_id: string
+          cultural_context?: Json | null
+          extracted_at?: string | null
+          family_data?: Json | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          contact_link_id?: string
+          cultural_context?: Json | null
+          extracted_at?: string | null
+          family_data?: Json | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_networks_contact_link_id_fkey"
+            columns: ["contact_link_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interventions: {
+        Row: {
+          contact_link_id: string
+          created_at: string | null
+          delivery_method: string
+          delivery_status: string
+          id: string
+          message_content: string
+          response_content: string | null
+          response_received_at: string | null
+          risk_level: string
+          target_family_member: Json
+          trigger_reason: string
+        }
+        Insert: {
+          contact_link_id: string
+          created_at?: string | null
+          delivery_method?: string
+          delivery_status?: string
+          id?: string
+          message_content: string
+          response_content?: string | null
+          response_received_at?: string | null
+          risk_level: string
+          target_family_member: Json
+          trigger_reason: string
+        }
+        Update: {
+          contact_link_id?: string
+          created_at?: string | null
+          delivery_method?: string
+          delivery_status?: string
+          id?: string
+          message_content?: string
+          response_content?: string | null
+          response_received_at?: string | null
+          risk_level?: string
+          target_family_member?: Json
+          trigger_reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interventions_contact_link_id_fkey"
+            columns: ["contact_link_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           created_at: string | null
           id: string
+          label: string | null
           parent_id: string
           relationship: string
           student_name: string
@@ -71,6 +157,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          label?: string | null
           parent_id: string
           relationship: string
           student_name: string
@@ -79,6 +166,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          label?: string | null
           parent_id?: string
           relationship?: string
           student_name?: string
