@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from './use-auth';
 
-export function useProfile() {
+export function useCurrentProfile() {
   const { user } = useAuth();
   const supabase = createClient();
 

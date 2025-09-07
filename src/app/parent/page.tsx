@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
-import { useProfile } from '@/hooks/use-profile';
+import { useCurrentProfile } from '@/hooks/use-profile';
 import { contacts, type Contact } from '@/lib/contacts';
 import { languages } from '@/lib/languages';
 import { ArrowLeft, Languages, PlusCircle, Search } from 'lucide-react';
@@ -27,9 +27,9 @@ export default function ParentContactsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [allContacts, setAllContacts] = useState(contacts);
   const [language, setLanguage] = useState('English');
-  
+
   const { user, loading: authLoading } = useAuth();
-  const { data: profile, isLoading: profileLoading } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useCurrentProfile();
   const router = useRouter();
 
   // Handle auth redirects on client side
@@ -42,7 +42,6 @@ export default function ParentContactsPage() {
       }
     }
   }, [user, profile, authLoading, profileLoading, router]);
-
 
   // Show loading state
   if (authLoading || profileLoading) {

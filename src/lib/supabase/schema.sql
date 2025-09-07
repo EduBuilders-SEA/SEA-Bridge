@@ -245,3 +245,60 @@ create policy "Require complete profile for attendance DELETE"
   for delete
   to authenticated
   using (public.profile_is_complete());
+
+create policy "Users can view profiles of their contacts"
+on public.profiles
+for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.contacts c
+    where
+      (c.parent_id = profiles.id and c.teacher_id = auth.jwt()->>'sub')
+      or
+      (c.teacher_id = profiles.id and c.parent_id = auth.jwt()->>'sub')
+  )
+);
+
+
+
+create or replace function public.create_contact_by_phone(target_phone text, child_name text default null)
+returns public.contacts
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  me_id   text := auth.jwt()->>'sub';
+  me_role text;
+  other_id text;
+  inserted contacts;
+begin
+  select role into me_role from profiles where id = me_id;
+  if me_role is null then raise exception 'Profile not found'; end if;
+
+  if me_role = 'teacher' then
+    if child_name is null or length(child_name)=0 then
+      raise exception 'Child name required';
+    end if;
+    select id into other_id from profiles where phone = target_phone and role = 'parent';
+    if other_id is null then raise exception 'NO_TARGET'; end if;
+
+    insert into contacts(parent_id, teacher_id, student_name, relationship)
+    values (other_id, me_id, child_name, 'parent')
+    returning * into inserted;
+  else
+    select id into other_id from profiles where phone = target_phone and role = 'teacher';
+    if other_id is null then raise exception 'NO_TARGET'; end if;
+
+    insert into contacts(parent_id, teacher_id, student_name, relationship)
+    values (me_id, other_id, 'N/A', 'parent')
+    returning * into inserted;
+  end if;
+
+  return inserted;
+end;
+$$;
+
+grant execute on function public.create_contact_by_phone(text, text) to authenticated;

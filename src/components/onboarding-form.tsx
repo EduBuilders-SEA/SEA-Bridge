@@ -21,7 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { useOnboardingFlow } from '@/hooks/use-onboarding-flow';
-import { useProfile } from '@/hooks/use-profile';
+import { useCurrentProfile } from '@/hooks/use-profile';
 import {
   OtpSchema,
   PhoneSchema,
@@ -44,7 +44,7 @@ export default function OnboardingForm() {
   const searchParams = useSearchParams();
   const role = searchParams.get('role');
   const { user, loading } = useAuth();
-  const { data: profile, isLoading: profileLoading } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useCurrentProfile();
 
   // Use the custom onboarding flow hook
   const {

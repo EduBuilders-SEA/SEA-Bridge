@@ -49,44 +49,14 @@ export function useContacts() {
     mutationFn: async (input: ContactCreate) => {
       if (!user) throw new Error('Not authenticated');
 
-      // Find the parent profile by phone
       const phone = input.phoneNumber.trim();
-      const { data: parent, error: parentErr } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('phone', phone)
-        .eq('role', 'parent')
-        .single();
-
-      if (parentErr || !parent) {
-        throw new Error(
-          'No parent profile found for that phone. Ask them to onboard first.'
-        );
-      }
-      if (!input.childName) {
-        throw new Error("Child's name is required");
-      }
-
-      // Insert with correct DB column names
-      const { data, error } = await supabase
-        .from('contacts')
-        .insert({
-          parent_id: parent.id,
-          teacher_id: user.uid,
-          student_name: input.childName,
-          relationship: 'parent',
-        })
-        .select(
-          `
-          *,
-          parent:parent_id(id, name, phone),
-          teacher:teacher_id(id, name, phone)
-        `
-        )
-        .single();
+      const { data, error } = await supabase.rpc('create_contact_by_phone', {
+        target_phone: phone,
+        child_name: input.childName ?? null,
+      });
 
       if (error) throw error;
-      return data;
+      return data; // inserted contact row
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts', user?.uid] });
@@ -97,5 +67,6 @@ export function useContacts() {
     contacts: contactsQuery.data ?? [],
     isLoading: contactsQuery.isLoading,
     createContact: createContactMutation.mutate,
+    createContactAsync: createContactMutation.mutateAsync,
   };
 }

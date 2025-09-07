@@ -32,7 +32,7 @@ type AddContactFormProps = {
   // eslint-disable-next-line no-undef
   children: React.ReactNode;
   role: 'teacher' | 'parent';
-  onAddContact: (contact: ContactCreate) => void;
+  onAddContact: (contact: ContactCreate) => Promise<unknown> | void;
 };
 
 export function AddContactForm({
@@ -53,14 +53,19 @@ export function AddContactForm({
     },
   });
 
-  function onSubmit(values: ContactCreate) {
-    onAddContact(values);
-    toast({
-      title: 'Contact Added',
-      description: `${values.name} has been added to your contacts.`,
-    });
-    setOpen(false);
-    form.reset();
+  async function onSubmit(values: ContactCreate) {
+    try {
+      await Promise.resolve(onAddContact(values));
+      toast({ title: 'Contact added' });
+      setOpen(false);
+      form.reset();
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to add contact',
+        description: (e as Error)?.message ?? 'Please try again.',
+      });
+    }
   }
 
   return (
@@ -80,19 +85,7 @@ export function AddContactForm({
             onSubmit={form.handleSubmit(onSubmit)}
             className='space-y-4 py-4'
           >
-            <FormField
-              control={form.control}
-              name='name'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder='e.g. Jane Doe' {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Name/Subject are not required for linking; keep UI minimal */}
             <FormField
               control={form.control}
               name='phoneNumber'
@@ -107,7 +100,7 @@ export function AddContactForm({
                       placeholder='e.g. +15555555555'
                       className='flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-base placeholder:text-muted-foreground focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:opacity-50 md:text-sm'
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(val) => field.onChange(val ?? '')}
                       onBlur={field.onBlur}
                       name={field.name}
                       id='phoneNumber'
@@ -126,21 +119,6 @@ export function AddContactForm({
                     <FormLabel>Child's Name</FormLabel>
                     <FormControl>
                       <Input placeholder='e.g. John Doe' {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            {role === 'teacher' && (
-              <FormField
-                control={form.control}
-                name='subject'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Subject</FormLabel>
-                    <FormControl>
-                      <Input placeholder='e.g. Mathematics' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

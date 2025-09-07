@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { type ContactWithJoins, useContacts } from '@/hooks/use-contacts';
-import { useProfile } from '@/hooks/use-profile';
+import { useCurrentProfile } from '@/hooks/use-profile';
 import { type ContactCreate } from '@/lib/schemas/contact';
 import { ArrowLeft, PlusCircle, Search } from 'lucide-react';
 import Link from 'next/link';
@@ -16,11 +16,11 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function TeacherContactsPage() {
-  const { contacts, createContact } = useContacts();
+  const { contacts, createContactAsync } = useContacts();
   const [searchTerm, setSearchTerm] = useState('');
 
   const { user, loading: authLoading } = useAuth();
-  const { data: profile, isLoading: profileLoading } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useCurrentProfile();
   const router = useRouter();
 
   // Handle auth redirects on client side
@@ -54,7 +54,7 @@ export default function TeacherContactsPage() {
   );
 
   const handleAddContact = (newContact: ContactCreate) => {
-    createContact(newContact);
+    return createContactAsync(newContact);
   };
 
   return (
@@ -110,7 +110,7 @@ export default function TeacherContactsPage() {
                     </AvatarFallback>
                   </Avatar>
                   <h3 className='font-headline font-semibold'>
-                    {contact.parent?.name ?? 'Unknown'}
+                    {(contact.parent?.name ?? contact.parent?.phone) ?? 'Pending'}
                   </h3>
                   <p className='text-sm text-muted-foreground'>
                     Parent of {contact.student_name}

@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
-import { useProfile } from '@/hooks/use-profile';
+import { useCurrentProfile } from '@/hooks/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,7 +30,7 @@ const schema = ProfileUpdateSchema;
 
 export function CompleteProfileGate() {
   const { user } = useAuth();
-  const { data: profile, isLoading } = useProfile();
+  const { data: profile, isLoading } = useCurrentProfile();
   const supabase = createClient();
   const queryClient = useQueryClient();
   const { toast } = useToast();
