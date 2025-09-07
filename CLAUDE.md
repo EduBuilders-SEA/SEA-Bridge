@@ -366,3 +366,35 @@ Reference: [Claude Code memory best practices](https://docs.anthropic.com/en/doc
 
 - Revalidate this memory after auth or onboarding changes
 - Keep phone/OTP rules and RLS gates in sync with the schema and hooks
+
+## Contacts & RLS (2025-09)
+
+- **Contacts shape**: `contacts(id, parent_id, teacher_id, student_name, relationship, created_at, label?)`.
+- **Cross-party profile read**: SELECT policy on `profiles` allows viewing the other party of a linked `contacts` row (exists check via `contacts`).
+- **Restrictive gates**: `profile_is_complete()` remains restrictive for INSERT/UPDATE/DELETE on `contacts`, `messages`, `attendance`.
+- **RPCs (SECURITY DEFINER)**:
+  - `create_contact_by_phone(target_phone TEXT, child_name TEXT DEFAULT NULL)`
+    - Teacher caller: requires `child_name`; inserts link `(parent_id=other, teacher_id=me)`.
+    - Parent caller: inserts `(parent_id=me, teacher_id=other)`, `student_name='N/A'`.
+  - `delete_contact(p_id UUID)` deletes only if caller is `parent_id` or `teacher_id` on the row; raises clear errors when not found/authorized.
+- **Client hook API (`useContacts()`)**:
+  - `contacts: ContactWithJoins` (joins `parent: parent_id(id,name,phone)` and `teacher: teacher_id(id,name,phone)`; optional `label`).
+  - `createContactAsync({ phoneNumber, childName? })` → RPC
+  - `updateContactAsync({ id, student_name?, label? })` → `contacts.update`
+  - `deleteContactAsync(id)` → RPC
+  - All mutations invalidate `['contacts', user.uid]`.
+- **UI patterns**:
+  - Teacher cards: title `parent.name || parent.phone || 'Pending'`; subtitle `Parent of {student_name}`.
+  - Parent cards: title `label || teacher.name || teacher.phone || 'Pending'`; subtitle `label ? (teacher.name || teacher.phone) : 'Teacher'`.
+  - Use icon buttons (edit/remove) with tooltips; PhoneInput (E.164) is the source of truth.
+- **Performance & RLS notes**:
+  - Add explicit `.eq('teacher_id', uid)` / `.eq('parent_id', uid)` filters on reads even with RLS for planner hints.
+  - Ensure indexes: `contacts(parent_id)`, `contacts(teacher_id)`, `profiles(phone)`.
+  - Prefer security definer functions for cross-table checks where appropriate.
+  - After policy/schema changes, reload PostgREST schema; for Next.js dev, disable route caching on affected routes if needed.
+
+### References
+- Memory best practices (Anthropic): https://docs.anthropic.com/en/docs/claude-code/memory
+- Supabase RLS: https://supabase.com/docs/guides/database/postgres/row-level-security
+- RLS performance: https://supabase.com/docs/guides/troubleshooting/rls-performance-and-best-practices-Z5Jjwv
+- Next.js stale data/RLS note: https://supabase.com/docs/guides/troubleshooting/nextjs-1314-stale-data-when-changing-rls-or-table-data-85b8oQ
