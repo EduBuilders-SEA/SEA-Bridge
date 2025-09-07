@@ -17,27 +17,20 @@ import {
 } from '@/components/chat/progress-summary-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
+import { useMessages } from '@/hooks/use-messages';
+import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
 import { useCurrentProfile } from '@/hooks/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import { contacts } from '@/lib/contacts';
-import { conversation, type Message } from '@/lib/data';
 import type { Attendance } from '@/lib/schemas';
 import { notFound, useRouter } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
 
-type DisplayMessage = Message & {
-  translatedContent?: string;
-  isTranslating?: boolean;
-  simplifiedContent?: string;
-  isSimplifying?: boolean;
-  transcription?: string;
-  isTranscribing?: boolean;
-  audioDataUri?: string;
-  fileUrl?: string;
-};
-
 function TeacherChatPageComponent({ contactId }: { contactId: string }) {
-  const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
+  // Use real data hooks instead of mock state
+  const { messages, sendMessage, isLoading } = useMessages(contactId);
+  useRealtimeMessages(contactId);
+  
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [teacherName, setTeacherName] = useState('Teacher');
@@ -66,7 +59,13 @@ function TeacherChatPageComponent({ contactId }: { contactId: string }) {
     }
   }, [user, profile, authLoading, profileLoading, router]);
 
-  if (authLoading || profileLoading) {
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  if (authLoading || profileLoading || isLoading) {
     return (
       <div className='flex items-center justify-center min-h-screen'>
         <div>Loading...</div>
@@ -92,23 +91,11 @@ function TeacherChatPageComponent({ contactId }: { contactId: string }) {
     role: 'Teacher',
   };
 
-  const addMessage = (message: DisplayMessage) => {
-    setMessages((prev) => [...prev, message]);
-  };
-
   const handleSendMessage = (content: string) => {
-    const newMessage: DisplayMessage = {
-      id: String(messages.length + 1),
-      sender: 'teacher',
+    sendMessage({
       content,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      type: 'text',
-      originalLanguage: 'English',
-    };
-    addMessage(newMessage);
+      message_type: 'text',
+    });
   };
 
   const handleSendSms = async (content: string) => {
@@ -120,18 +107,10 @@ function TeacherChatPageComponent({ contactId }: { contactId: string }) {
         contact.name
       })\n---\n${result.chunks.join('\n---\n')}`;
 
-      const newMessage: DisplayMessage = {
-        id: String(messages.length + 1),
-        sender: 'teacher',
+      sendMessage({
         content: smsContent,
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        type: 'text',
-        originalLanguage: 'English',
-      };
-      addMessage(newMessage);
+        message_type: 'text',
+      });
 
       toast({
         title: 'SMS Sent (Simulated)',
@@ -148,42 +127,24 @@ function TeacherChatPageComponent({ contactId }: { contactId: string }) {
   };
 
   const handleSendVoice = async (audioDataUri: string) => {
-    const newId = String(messages.length + 1);
-    const newMessage: DisplayMessage = {
-      id: newId,
-      sender: 'teacher',
-      content: 'Voice note', // Placeholder content
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      type: 'voice',
-      originalLanguage: 'English',
-      isTranscribing: true,
-      audioDataUri,
-    };
-    addMessage(newMessage);
+    // Send initial voice message while processing
+    sendMessage({
+      content: 'Voice note',
+      message_type: 'voice',
+    });
 
     try {
       // Teachers send voice notes in English and translate to the parent's language
       const result = await transcribeAndTranslate({
         audioDataUri,
-        targetLanguage: contact.language || 'English',
+        targetLanguage: contact.language ?? 'English',
       });
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === newId
-            ? {
-                ...m,
-                isTranscribing: false,
-                content: result.transcription, // Use transcription as main content
-                transcription: result.transcription,
-                translatedContent: result.translation,
-                audioDataUri, // Make sure audio is playable
-              }
-            : m
-        )
-      );
+      
+      // Send the transcribed content as a follow-up
+      sendMessage({
+        content: result.transcription,
+        message_type: 'voice',
+      });
     } catch (error) {
       console.error('Failed to transcribe voice note:', error);
       toast({
@@ -191,34 +152,17 @@ function TeacherChatPageComponent({ contactId }: { contactId: string }) {
         title: 'Error',
         description: 'Could not process the voice note. Please try again.',
       });
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === newId
-            ? {
-                ...m,
-                isTranscribing: false,
-                content: 'Error processing voice note',
-              }
-            : m
-        )
-      );
     }
   };
 
   const handleSendFile = (file: File) => {
-    const newMessage: DisplayMessage = {
-      id: String(messages.length + 1),
-      sender: 'teacher',
+    // For now, send the file name. In a real implementation, 
+    // you would upload to Supabase Storage first and get the URL
+    sendMessage({
       content: file.name,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      type: 'document',
-      originalLanguage: 'English',
-      fileUrl: URL.createObjectURL(file), // Create a temporary URL for the file
-    };
-    addMessage(newMessage);
+      message_type: 'document',
+      file_url: URL.createObjectURL(file), // Temporary URL for demo
+    });
   };
 
   const generateSummary = async (currentAttendance: Attendance) => {
@@ -256,12 +200,6 @@ function TeacherChatPageComponent({ contactId }: { contactId: string }) {
       generateSummary(attendance);
     }
   };
-
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
-  }, [messages]);
 
   const layoutTitle = `Conversation with ${contact.name}`;
   const layoutUser = {
