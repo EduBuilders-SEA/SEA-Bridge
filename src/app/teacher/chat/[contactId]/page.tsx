@@ -11,6 +11,7 @@ import ChatMessage from '@/components/chat/chat-message';
 import ChatPageLayout from '@/components/chat/chat-page-layout';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
 import MessageInput from '@/components/chat/message-input';
+import { InterventionsPanel } from '@/components/interventions/interventions-panel';
 import {
   ProgressSummaryCard,
   ProgressSummaryCardSkeleton,
@@ -281,6 +282,7 @@ function TeacherChatPageComponent({ contactId }: { contactId: string }) {
           <TabsList>
             <TabsTrigger value='chat'>Chat</TabsTrigger>
             <TabsTrigger value='summary'>Progress Summary</TabsTrigger>
+            <TabsTrigger value='interventions'>Family Support</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent
@@ -324,6 +326,12 @@ function TeacherChatPageComponent({ contactId }: { contactId: string }) {
               attendance={summary.attendance}
             />
           )}
+        </TabsContent>
+        <TabsContent
+          value='interventions'
+          className='flex-1 overflow-y-auto p-4 md:p-6'
+        >
+          <InterventionsPanel contactLinkId={contactId} />
         </TabsContent>
       </Tabs>
     </ChatPageLayout>
