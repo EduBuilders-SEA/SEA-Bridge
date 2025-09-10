@@ -11,6 +11,7 @@ import {
 import { useMessagePersistence } from '@/hooks/use-message-persistence';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import type { ChatMessage } from '@/lib/schemas';
 import {
   MessageSquareText,
   Mic,
@@ -22,10 +23,10 @@ import React, { useRef, useState } from 'react';
 
 type MessageInputProps = {
   contactId: string;
-  onSendMessage: (content: string) => void;
-  onSendSms?: (content: string) => void;
-  onSendVoice?: (audioDataUri: string) => void;
-  onSendFile?: (file: File) => void;
+  onSendMessage: (content: string) => Promise<ChatMessage | null | void>;
+  onSendSms?: (content: string) => Promise<ChatMessage | null | void>;
+  onSendVoice?: (audioDataUri: string) => Promise<ChatMessage | null | void>;
+  onSendFile?: (file: File) => Promise<ChatMessage | null | void>;
   placeholder?: string;
 };
 
@@ -45,13 +46,13 @@ export default function MessageInput({
   const { toast } = useToast();
   const { persistMessage } = useMessagePersistence();
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (text.trim()) {
-      // 1. Send via broadcast for real-time
-      onSendMessage(text);
+      const sent = await onSendMessage(text);
 
-      // 2. Persist to database
       persistMessage({
+        id: sent?.id,
+        sent_at: sent?.sent_at,
         content: text,
         message_type: 'text',
         contact_link_id: contactId,
@@ -61,14 +62,14 @@ export default function MessageInput({
     }
   };
 
-  const handleSendSms = () => {
+  const handleSendSms = async () => {
     if (text.trim() && onSendSms) {
-      // 1. Send SMS (this handles its own broadcast)
-      onSendSms(text);
+      const sent = await onSendSms(text);
 
-      // 2. Persist the SMS message to database
       persistMessage({
-        content: `[SMS] ${text}`, // Add SMS prefix to distinguish in content
+        id: sent?.id,
+        sent_at: sent?.sent_at,
+        content: `[SMS] ${text}`,
         message_type: 'text',
         contact_link_id: contactId,
       });
@@ -89,24 +90,24 @@ export default function MessageInput({
         audioChunksRef.current.push(event.data);
       };
 
-      mediaRecorderRef.current.onstop = () => {
+      mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, {
           type: 'audio/webm',
         });
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
+        reader.onloadend = async () => {
           const audioDataUri = reader.result as string;
 
-          // 1. Send via broadcast for real-time
-          onSendVoice(audioDataUri);
+          const sent = onSendVoice ? await onSendVoice(audioDataUri) : undefined;
 
-          // 2. Persist to database
           persistMessage({
+            id: sent?.id,
+            sent_at: sent?.sent_at,
             content: 'Voice note',
             message_type: 'audio',
             contact_link_id: contactId,
-            file_url: audioDataUri, // In production, upload to storage first
+            file_url: audioDataUri,
           });
         };
 
@@ -141,18 +142,18 @@ export default function MessageInput({
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && onSendFile) {
-      // 1. Send via broadcast for real-time
-      onSendFile(file);
+      const sent = await onSendFile(file);
 
-      // 2. Persist to database
       persistMessage({
-        content: `📎 ${file.name} (${(file.size / 1024).toFixed(1)}KB)`, // Include file info in content
+        id: sent?.id,
+        sent_at: sent?.sent_at,
+        content: `📎 ${file.name} (${(file.size / 1024).toFixed(1)}KB)`,
         message_type: 'document',
         contact_link_id: contactId,
-        file_url: URL.createObjectURL(file), // In production, upload to storage first
+        file_url: URL.createObjectURL(file),
       });
     }
 

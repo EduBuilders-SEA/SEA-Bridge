@@ -112,7 +112,7 @@ export default function TeacherChatPageClient({
   };
 
   const handleSendMessage = (content: string) => {
-    sendMessage({
+    return sendMessage({
       content,
       message_type: 'text',
     });
@@ -129,7 +129,7 @@ export default function TeacherChatPageClient({
         '\n---\n'
       )}`;
 
-      sendMessage({
+      const result2 = sendMessage({
         content: smsContent,
         message_type: 'text',
       });
@@ -138,6 +138,8 @@ export default function TeacherChatPageClient({
         title: 'SMS Sent (Simulated)',
         description: `Message was split into ${result.chunks.length} chunks.`,
       });
+
+      return result2;
     } catch (error) {
       console.error('Failed to send SMS:', error);
       toast({
@@ -149,7 +151,8 @@ export default function TeacherChatPageClient({
   };
 
   const handleSendVoice = async (audioDataUri: string) => {
-    sendMessage({
+    // Return the first message (the "Voice note") so we can persist with that id
+    const first = sendMessage({
       content: 'Voice note',
       message_type: 'voice',
     });
@@ -172,10 +175,11 @@ export default function TeacherChatPageClient({
         description: 'Could not process the voice note. Please try again.',
       });
     }
+    return first;
   };
 
   const handleSendFile = (file: File) => {
-    sendMessage({
+    return sendMessage({
       content: file.name,
       message_type: 'image',
       file_url: URL.createObjectURL(file),

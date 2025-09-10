@@ -42,11 +42,13 @@ export const ChatMessageSchema = MessageSchema.extend({
 
 // ✅ Input schema for sending messages
 export const SendMessageSchema = z.object({
+  id: z.string().uuid().optional(),
   contact_link_id: z.string().uuid(),
   content: z.string().min(1),
   message_type: z.enum(['text', 'voice', 'image', 'audio', 'document']).default('text'),
   variants: MessageSchema.shape.variants,
   file_url: z.string().url().nullable().optional(),
+  sent_at: z.string().optional(),
 })
 
 

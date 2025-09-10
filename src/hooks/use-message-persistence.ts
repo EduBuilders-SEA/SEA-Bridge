@@ -21,13 +21,14 @@ export function useMessagePersistence() {
       // ✅ DRY: Transform to database format
       const messageInsert: Database['public']['Tables']['messages']['Insert'] =
         {
+          id: validatedData.id, // carry client id if present
           contact_link_id: validatedData.contact_link_id,
           sender_id: user.uid,
           content: validatedData.content,
           message_type: validatedData.message_type,
           variants: validatedData.variants,
           file_url: validatedData.file_url,
-          sent_at: new Date().toISOString(),
+          sent_at: validatedData.sent_at ?? new Date().toISOString(),
         };
 
       const { data: result, error } = await supabase
