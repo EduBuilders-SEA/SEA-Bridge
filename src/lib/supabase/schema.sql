@@ -24,6 +24,20 @@ create table contacts (
   label text
 );
 
+-- Enforce uniqueness of parent-teacher links
+create unique index if not exists contacts_parent_teacher_uidx
+  on public.contacts(parent_id, teacher_id);
+
+-- Bind it as a named constraint (idempotent pattern)
+do $$
+begin
+  alter table public.contacts
+    add constraint contacts_unique_parent_teacher
+    unique using index contacts_parent_teacher_uidx;
+exception when duplicate_object then
+  null;
+end $$;
+
 -- Create messages table - all communications between teacher and parent
 create table messages (
   id uuid primary key default gen_random_uuid(),
@@ -283,28 +297,46 @@ declare
   me_id   text := auth.jwt()->>'sub';
   me_role text;
   other_id text;
-  inserted contacts;
+  inserted public.contacts%rowtype;
 begin
-  select role into me_role from profiles where id = me_id;
-  if me_role is null then raise exception 'Profile not found'; end if;
+  select role into me_role from public.profiles where id = me_id;
+  if me_role is null then raise exception 'PROFILE_NOT_FOUND'; end if;
 
   if me_role = 'teacher' then
     if child_name is null or length(child_name)=0 then
-      raise exception 'Child name required';
+      raise exception 'CHILD_NAME_REQUIRED';
     end if;
-    select id into other_id from profiles where phone = target_phone and role = 'parent';
+
+    select id into other_id
+    from public.profiles
+    where phone = target_phone and role = 'parent';
+
     if other_id is null then raise exception 'NO_TARGET'; end if;
 
-    insert into contacts(parent_id, teacher_id, student_name, relationship)
+    insert into public.contacts(parent_id, teacher_id, student_name, relationship)
     values (other_id, me_id, child_name, 'parent')
+    on conflict (parent_id, teacher_id) do nothing
     returning * into inserted;
+
+    if inserted is null then
+      raise exception 'CONTACT_ALREADY_EXISTS';
+    end if;
+
   else
-    select id into other_id from profiles where phone = target_phone and role = 'teacher';
+    select id into other_id
+    from public.profiles
+    where phone = target_phone and role = 'teacher';
+
     if other_id is null then raise exception 'NO_TARGET'; end if;
 
-    insert into contacts(parent_id, teacher_id, student_name, relationship)
+    insert into public.contacts(parent_id, teacher_id, student_name, relationship)
     values (me_id, other_id, 'N/A', 'parent')
+    on conflict (parent_id, teacher_id) do nothing
     returning * into inserted;
+
+    if inserted is null then
+      raise exception 'CONTACT_ALREADY_EXISTS';
+    end if;
   end if;
 
   return inserted;

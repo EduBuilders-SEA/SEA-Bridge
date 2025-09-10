@@ -1,12 +1,14 @@
 'use client';
 
 import { chunkMessageForSms } from '@/ai/flows/chunk-message-for-sms';
+import { simplifyMessage } from '@/ai/flows/simplify-message';
 import {
   summarizeConversation,
   type SummarizeConversationOutput,
 } from '@/ai/flows/summarize-conversation';
+import { summarizeDocument } from '@/ai/flows/summarize-document';
 import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
-import { AttendanceForm } from '@/components/chat/attendance-form';
+import { translateMessage } from '@/ai/flows/translate-message';
 import ChatMessage from '@/components/chat/chat-message';
 import ChatPageLayout from '@/components/chat/chat-page-layout';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
@@ -22,11 +24,10 @@ import { useMessageQuery } from '@/hooks/use-message-query';
 import { useCurrentProfile } from '@/hooks/use-profile';
 import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
 import { useToast } from '@/hooks/use-toast';
-import type { Attendance } from '@/lib/schemas';
-import { notFound, useRouter } from 'next/navigation';
+import { notFound, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-export default function TeacherChatPageClient({
+export default function ParentChatPageClient({
   contactId,
 }: {
   contactId: string;
@@ -51,19 +52,18 @@ export default function TeacherChatPageClient({
     );
   }, [initialMessages, realtimeMessages]);
 
+  const searchParams = useSearchParams();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const [teacherName, setTeacherName] = useState('Teacher');
+  const router = useRouter();
+
+  const [parentName, setParentName] = useState('Parent');
   const [summary, setSummary] = useState<SummarizeConversationOutput | null>(
     null
   );
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [attendance, setAttendance] = useState<Attendance>({
-    present: 18,
-    absent: 1,
-    tardy: 1,
-  });
-  const router = useRouter();
+  const lang = searchParams.get('lang');
+  const [parentLanguage] = useState(lang ?? 'English');
 
   // Find the contact from the real contacts data
   const contact = contacts.find((c) => c.id === contactId);
@@ -71,23 +71,72 @@ export default function TeacherChatPageClient({
   useEffect(() => {
     if (!authLoading && !profileLoading) {
       if (!user) {
-        router.push('/onboarding?role=teacher');
-      } else if (profile && profile.role !== 'teacher') {
+        router.push('/onboarding?role=parent');
+      } else if (profile && profile.role !== 'parent') {
         router.push(`/${profile.role}`);
       } else if (profile) {
-        setTeacherName(profile.name || 'Teacher');
+        setParentName(profile.name || 'Parent');
       }
     }
   }, [user, profile, authLoading, profileLoading, router]);
+
+  // TODO: Add auto-translation logic + optimize it
+
+  // useEffect(() => {
+  //   const autoTranslateMessages = async () => {
+  //     if (parentLanguage === 'English') return;
+
+  //     const messagesToTranslate = allMessages.filter(
+  //       (m) =>
+  //         m.sender_id !== user?.uid &&
+  //         m.message_type === 'text' &&
+  //         !m.variants?.translatedContent
+  //     );
+
+  //     if (messagesToTranslate.length === 0) return;
+
+  //     try {
+  //       const translationPromises = messagesToTranslate.map((message) =>
+  //         translateMessage({
+  //           content: message.content,
+  //           targetLanguage: parentLanguage,
+  //         }).then((result) => ({
+  //           id: message.id,
+  //           translatedContent: result.translation,
+  //         }))
+  //       );
+
+  //       const translations = await Promise.all(translationPromises);
+
+  //       // Note: In a real app, you'd update the message variants in the database
+  //       // For now, this demonstrates the translation functionality
+  //       toast({
+  //         title: 'Auto-translation Complete',
+  //         description: `Translated ${translations.length} messages to ${parentLanguage}`,
+  //       });
+  //     } catch (error) {
+  //       console.error('Failed to auto-translate messages:', error);
+  //       toast({
+  //         variant: 'destructive',
+  //         title: 'Error',
+  //         description: 'Could not automatically translate messages.',
+  //       });
+  //     }
+  //   };
+
+  //   if (allMessages.length > 0) {
+  //     autoTranslateMessages();
+  //   }
+  // }, [parentLanguage, allMessages, user?.uid, toast]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
-  }, [realtimeMessages]);
+  }, [allMessages]);
 
-  // ✅ Include messagesLoading in loading check
-  if (authLoading || profileLoading || contactsLoading || messagesLoading) {
+  // Show loading while any required data is loading
+  if (authLoading || profileLoading || contactsLoading) {
     return (
       <div className='flex items-center justify-center min-h-screen'>
         <div>Loading...</div>
@@ -105,10 +154,10 @@ export default function TeacherChatPageClient({
     notFound();
   }
 
-  const teacher = {
-    name: teacherName,
+  const parent = {
+    name: parentName,
     avatarUrl: 'https://placehold.co/100x100.png',
-    role: 'Teacher',
+    role: 'Parent',
   };
 
   const handleSendMessage = (content: string) => {
@@ -123,10 +172,10 @@ export default function TeacherChatPageClient({
 
     try {
       const result = await chunkMessageForSms({ content });
-      const parentName =
-        contact.parent?.name ?? contact.parent?.phone ?? 'Parent';
-      const smsContent = `(Simulated SMS sent to ${parentName})\n---\n${result.chunks.join(
-        '\n---\n'
+      const teacherName =
+        contact.teacher?.name ?? contact.teacher?.phone ?? 'Teacher';
+      const smsContent = `(Simulated SMS sent to ${teacherName})\\n---\\n${result.chunks.join(
+        '\\n---\\n'
       )}`;
 
       sendMessage({
@@ -182,19 +231,68 @@ export default function TeacherChatPageClient({
     });
   };
 
-  const generateSummary = async (currentAttendance: Attendance) => {
+  const handleSimplify = async (messageId: string) => {
+    const message = allMessages.find((m) => m.id === messageId);
+    if (!message || message.variants?.simplifiedContent) return;
+
+    try {
+      await simplifyMessage({ content: String(message.content) });
+      // Note: In a real app, you'd update the message variants in the database
+      toast({
+        title: 'Message Simplified',
+        description: 'The message has been simplified for easier reading.',
+      });
+    } catch (error) {
+      console.error('Failed to simplify message:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not simplify the message. Please try again.',
+      });
+    }
+  };
+
+  const handleSummarize = async (messageId: string) => {
+    const message = allMessages.find((m) => m.id === messageId);
+    if (!message || message.variants?.summary) return;
+
+    try {
+      // For document messages, summarize the content
+      await summarizeDocument({
+        documentContent: String(message.content),
+      });
+      // Note: In a real app, you'd update the message variants in the database
+      toast({
+        title: 'Document Summarized',
+        description: 'The document has been summarized.',
+      });
+    } catch (error) {
+      console.error('Failed to summarize document:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not summarize the document. Please try again.',
+      });
+    }
+  };
+
+  const generateSummary = async () => {
     setIsGeneratingSummary(true);
     setSummary(null);
     try {
-      const conversationToSummarize = realtimeMessages.map((msg) => ({
-        sender: (msg.sender_id === user.uid ? 'teacher' : 'parent') as
-          | 'teacher'
-          | 'parent',
-        content: String(msg.content),
-      }));
+      const conversationToSummarize = allMessages.map(
+        ({ sender_id, content }: { sender_id: string; content: string }) => ({
+          sender: (sender_id === user?.uid ? 'parent' : 'teacher') as
+            | 'teacher'
+            | 'parent',
+          content: String(content),
+        })
+      );
+      // Mock attendance data for parent view (read-only)
+      const mockAttendance = { present: 18, absent: 1, tardy: 1 };
       const result = await summarizeConversation({
         messages: conversationToSummarize,
-        attendance: currentAttendance,
+        attendance: mockAttendance,
       });
       setSummary(result);
     } catch (error) {
@@ -209,23 +307,19 @@ export default function TeacherChatPageClient({
     }
   };
 
-  const handleUpdateAttendance = (newAttendance: Attendance) => {
-    setAttendance(newAttendance);
-    generateSummary(newAttendance);
-  };
-
   const onTabChange = (tab: string) => {
     if (tab === 'summary' && !summary && !isGeneratingSummary) {
-      generateSummary(attendance);
+      generateSummary();
     }
   };
 
-  const parentName = contact.parent?.name ?? contact.parent?.phone ?? 'Parent';
-  const layoutTitle = `Conversation with ${parentName}`;
+  const teacherName =
+    contact.teacher?.name ?? contact.teacher?.phone ?? 'Teacher';
+  const layoutTitle = `Conversation with ${teacherName}`;
   const layoutUser = {
-    name: teacher.name,
-    avatarUrl: teacher.avatarUrl,
-    role: 'Teacher',
+    name: parent.name,
+    avatarUrl: parent.avatarUrl,
+    role: 'Parent',
   } as const;
 
   return (
@@ -254,6 +348,8 @@ export default function TeacherChatPageClient({
                 key={msg.id}
                 message={msg}
                 currentUserId={user.uid}
+                onSimplify={handleSimplify}
+                onSummarize={handleSummarize}
               />
             ))}
           </div>
@@ -264,6 +360,7 @@ export default function TeacherChatPageClient({
               onSendSms={handleSendSms}
               onSendVoice={handleSendVoice}
               onSendFile={handleSendFile}
+              placeholder={`Reply in ${parentLanguage}...`}
             />
           </div>
         </TabsContent>
@@ -274,14 +371,10 @@ export default function TeacherChatPageClient({
           <div className='flex justify-end'>
             <DateRangePicker />
           </div>
-          <AttendanceForm
-            initialData={attendance}
-            onUpdateAttendance={handleUpdateAttendance}
-          />
           {isGeneratingSummary && <ProgressSummaryCardSkeleton />}
           {summary && !isGeneratingSummary && (
             <ProgressSummaryCard
-              studentName={contact.student_name}
+              studentName={contact.student_name ?? 'Your Child'}
               summaryText={summary.summaryText}
               actionItems={summary.actionItems}
               attendance={summary.attendance}

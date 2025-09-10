@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import type { Database } from '@/lib/supabase/types';
+import type { ChatMessage } from '@/lib/schemas';
 import { cn, formatMessageTime } from '@/lib/utils';
 import {
   Download,
@@ -18,27 +18,8 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { Slider } from '../ui/slider';
 
-// Use database type and extend with typed variants
-type Message = Database['public']['Tables']['messages']['Row'] & {
-  variants?: {
-    // AI-processed content stored in variants JSONB
-    originalLanguage?: string;
-    translatedContent?: string;
-    isTranslating?: boolean;
-    simplifiedContent?: string;
-    isSimplifying?: boolean;
-    transcription?: string;
-    isTranscribing?: boolean;
-    summary?: string;
-    isSummarizing?: boolean;
-    // For voice messages, we'll store audio data URI in variants
-    audioDataUri?: string;
-  } | null;
-};
-
 type ChatMessageProps = {
-  message: Message;
-  //   currentUser: 'teacher' | 'parent';
+  message: ChatMessage;
   currentUserId: string;
   onSimplify?: (id: string) => void;
   onSummarize?: (id: string) => void;
@@ -199,7 +180,7 @@ const MessageContent = ({
   message,
   isSentByCurrentUser,
 }: {
-  message: Message;
+  message: ChatMessage;
   isSentByCurrentUser: boolean;
 }) => {
   if (message.message_type === 'image') {
@@ -453,7 +434,7 @@ const MessageContent = ({
   );
 };
 
-export default function ChatMessage({
+export default function ChatMessageComponent({
   message,
   currentUserId,
   onSimplify,

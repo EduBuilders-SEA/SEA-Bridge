@@ -5,9 +5,9 @@ import { ChatSkeleton } from '@/components/chat/chat-skeleton';
 export default async function TeacherChatPage({
   params,
 }: {
-  params: { contactId: string };
+  params: Promise<{ contactId: string }>;
 }) {
-  const { contactId } = params;
+  const { contactId } = await params;
 
 
   return (

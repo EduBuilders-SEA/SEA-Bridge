@@ -169,11 +169,16 @@ export default function TeacherContactsPage() {
                     </AvatarFallback>
                   </Avatar>
                   <h3 className='font-headline font-semibold'>
-                    {contact.parent?.name ?? contact.parent?.phone ?? 'Pending'}
+                    {contact.parent?.name ?? 'Pending'}
                   </h3>
                   <p className='text-sm text-muted-foreground'>
                     Parent of {contact.student_name}
                   </p>
+                  {contact.parent?.phone && (
+                    <p className='text-xs text-muted-foreground mt-1'>
+                      {contact.parent.phone}
+                    </p>
+                  )}
                   <div className='mt-4 flex gap-2'>
                     <TooltipProvider delayDuration={0}>
                       <Tooltip>
