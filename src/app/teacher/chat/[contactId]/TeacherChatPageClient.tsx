@@ -34,13 +34,19 @@ export default function TeacherChatPageClient({
   const { user, loading: authLoading } = useAuth();
   const { data: profile, isLoading: profileLoading } = useCurrentProfile();
   const { contacts, isLoading: contactsLoading } = useContacts();
-  const { messages, sendMessage, isLoading: messagesLoading } = useMessages(contactId);
+  const {
+    messages,
+    sendMessage,
+    isLoading: messagesLoading,
+  } = useMessages(contactId);
   useRealtimeMessages(contactId);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [teacherName, setTeacherName] = useState('Teacher');
-  const [summary, setSummary] = useState<SummarizeConversationOutput | null>(null);
+  const [summary, setSummary] = useState<SummarizeConversationOutput | null>(
+    null
+  );
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [attendance, setAttendance] = useState<Attendance>({
     present: 18,
@@ -109,8 +115,11 @@ export default function TeacherChatPageClient({
 
     try {
       const result = await chunkMessageForSms({ content });
-      const parentName = contact.parent?.name || contact.parent?.phone || 'Parent';
-      const smsContent = `(Simulated SMS sent to ${parentName})\n---\n${result.chunks.join('\n---\n')}`;
+      const parentName =
+        contact.parent?.name || contact.parent?.phone || 'Parent';
+      const smsContent = `(Simulated SMS sent to ${parentName})\n---\n${result.chunks.join(
+        '\n---\n'
+      )}`;
 
       sendMessage({
         content: smsContent,
@@ -177,10 +186,12 @@ export default function TeacherChatPageClient({
     setIsGeneratingSummary(true);
     setSummary(null);
     try {
-      const conversationToSummarize = messages.map(({ sender_id, content }) => ({
-        sender: sender_id === user.uid ? 'teacher' : 'parent',
-        content,
-      }));
+      const conversationToSummarize = messages.map(
+        ({ sender_id, content }) => ({
+          sender: sender_id === user.uid ? 'teacher' : 'parent',
+          content,
+        })
+      );
       const result = await summarizeConversation({
         messages: conversationToSummarize,
         attendance: currentAttendance,
