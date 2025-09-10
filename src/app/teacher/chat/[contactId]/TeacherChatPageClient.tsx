@@ -34,7 +34,7 @@ export default function TeacherChatPageClient({
   const { user, loading: authLoading } = useAuth();
   const { data: profile, isLoading: profileLoading } = useCurrentProfile();
   const { contacts, isLoading: contactsLoading } = useContacts();
-  const { messages: realtimeMessages, sendMessage } =
+  const { messages: realtimeMessages, sendMessage, channel } =
     useRealtimeMessages(contactId);
   const { data: initialMessages, isLoading: messagesLoading } =
     useMessageQuery(contactId);
@@ -254,6 +254,8 @@ export default function TeacherChatPageClient({
                 key={msg.id}
                 message={msg}
                 currentUserId={user.uid}
+                contactId={contactId}
+                channel={channel}
               />
             ))}
           </div>

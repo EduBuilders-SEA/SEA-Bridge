@@ -2,30 +2,53 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { useMessageDelete } from '@/hooks/use-message-delete';
+import { useMessageEdit } from '@/hooks/use-message-edit';
 import type { ChatMessage } from '@/lib/schemas';
 import { cn, formatMessageTime } from '@/lib/utils';
 import {
   Download,
+  Edit3,
   FileText,
   Loader2,
+  MoreHorizontal,
   Pause,
   Play,
   Quote,
   Sparkles,
+  Trash2,
   Volume2,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { Slider } from '../ui/slider';
+import type { SupabaseChannel } from '@/lib/supabase/types';
 
 type ChatMessageProps = {
   message: ChatMessage;
   currentUserId: string;
+  contactId: string;
   onSimplify?: (id: string) => void;
   onSummarize?: (id: string) => void;
+  channel: SupabaseChannel;
 };
 
 import React from 'react';
+
 
 const AiActionButton = ({
   isLoading,
@@ -434,12 +457,82 @@ const MessageContent = ({
   );
 };
 
+const MessageActions = ({
+  message,
+  currentUserId,
+  onEdit,
+  onDelete,
+  isEditing,
+  isDeleting,
+}: {
+  message: ChatMessage;
+  currentUserId: string;
+  onEdit: () => void;
+  onDelete: () => void;
+  isEditing: boolean;
+  isDeleting: boolean;
+}) => {
+
+  // Only show actions for own messages
+  if (message.sender_id !== currentUserId) return null;
+
+  return (
+    <TooltipProvider>
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant='ghost'
+                size='sm'
+                className='h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity'
+                disabled={isEditing || isDeleting}
+              >
+                {isEditing || isDeleting ? (
+                  <Loader2 className='h-3 w-3 animate-spin' />
+                ) : (
+                  <MoreHorizontal className='h-3 w-3' />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Message options</p>
+          </TooltipContent>
+        </Tooltip>
+
+        <DropdownMenuContent align='end' className='w-32'>
+          <DropdownMenuItem onClick={onEdit} className='text-xs'>
+            <Edit3 className='h-3 w-3 mr-2' />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={onDelete}
+            className='text-xs text-destructive focus:text-destructive'
+          >
+            <Trash2 className='h-3 w-3 mr-2' />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </TooltipProvider>
+  );
+};
+
 export default function ChatMessageComponent({
   message,
   currentUserId,
+  contactId,
   onSimplify,
   onSummarize,
+  channel,
 }: ChatMessageProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(message.content);
+  const { editMessage, isEditing: isEditingMutate } = useMessageEdit(contactId, channel);
+  const { deleteMessage, isDeleting: isDeletingMutate } = useMessageDelete(contactId, channel);
+
   const isSentByCurrentUser = message.sender_id === currentUserId;
 
   const showAIActions =
@@ -452,10 +545,45 @@ export default function ChatMessageComponent({
   const cardPadding =
     isImageType || message.message_type === 'voice' ? 'p-1' : 'p-3';
 
+  const handleEdit = () => {
+    setIsEditing(true);
+    setEditContent(message.content);
+  };
+
+  const handleSaveEdit = () => {
+    if (editContent.trim() && editContent !== message.content) {
+      editMessage({
+        messageId: message.id,
+        content: editContent.trim(),
+      });
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditContent(message.content);
+  };
+
+  const handleDelete = () => {
+    if (confirm('Are you sure you want to delete this message?')) {
+      deleteMessage(message.id);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveEdit();
+    } else if (e.key === 'Escape') {
+      handleCancelEdit();
+    }
+  };
+
   return (
     <div
       className={cn(
-        'flex items-end gap-2',
+        'flex items-end gap-2 group',
         isSentByCurrentUser ? 'justify-end' : 'justify-start'
       )}
     >
@@ -469,10 +597,54 @@ export default function ChatMessageComponent({
           )}
         >
           <CardContent className={cardPadding}>
-            <MessageContent
-              message={message}
-              isSentByCurrentUser={isSentByCurrentUser}
-            />
+            {isEditing ? (
+              <div className='space-y-2'>
+                <Input
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className={cn(
+                    'text-sm',
+                    isSentByCurrentUser
+                      ? 'bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/60'
+                      : 'bg-background border-input text-foreground placeholder:text-muted-foreground'
+                  )}
+                  placeholder='Edit your message...'
+                  autoFocus
+                />
+                <div className='flex gap-2 justify-end'>
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    onClick={handleCancelEdit}
+                  >
+                    Cancel
+                  </Button>
+                  <Button size='sm' onClick={handleSaveEdit}>
+                    Save
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className='flex items-start justify-between gap-2'>
+                <div className='flex-1'>
+                  <MessageContent
+                    message={message}
+                    isSentByCurrentUser={isSentByCurrentUser}
+                  />
+                </div>
+
+                {/* Message Actions */}
+                <MessageActions
+                  message={message}
+                  currentUserId={currentUserId}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  isEditing={isEditingMutate}
+                  isDeleting={isDeletingMutate}
+                />
+              </div>
+            )}
           </CardContent>
           {!isSentByCurrentUser && (
             <CardFooter className='p-2 pt-0 flex justify-between items-center'>

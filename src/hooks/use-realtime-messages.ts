@@ -6,14 +6,14 @@ import { useAuth } from './use-auth';
 import { SendMessageSchema, ChatMessageSchema, type ChatMessage, type SendMessageData } from '@/lib/schemas';
 
 const EVENT_MESSAGE_TYPE = 'message';
+const EVENT_MESSAGE_EDIT = 'message_edit';
+const EVENT_MESSAGE_DELETE = 'message_delete';
 
 export function useRealtimeMessages(contactLinkId: string) {
   const { user } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [channel, setChannel] = useState<ReturnType<
-    typeof supabase.channel
-  > | null>(null);
+  const [channel, setChannel] = useState<ReturnType<typeof supabase.channel> | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   const sendMessage = useCallback(
@@ -74,6 +74,7 @@ export function useRealtimeMessages(contactLinkId: string) {
           broadcast: { self: false }, // Don't receive your own messages
         },
       })
+      // Listen for new messages
       .on('broadcast', { event: EVENT_MESSAGE_TYPE }, (payload) => {
         // ✅ DRY: Validate incoming message with Zod
         const message = ChatMessageSchema.parse(payload.payload);
@@ -87,6 +88,37 @@ export function useRealtimeMessages(contactLinkId: string) {
             (a, b) =>
               new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime() 
           );
+        });
+      })
+      // Listen for message edits
+      .on('broadcast', { event: EVENT_MESSAGE_EDIT }, (payload) => {
+        const { messageId, content } = payload.payload as {
+          messageId: string;
+          content: string;
+          editedBy: string;
+          editedAt: string;
+        };
+        
+        console.log('✏️ Real-time edit received:', messageId);
+
+        setMessages((current) => {
+          return current.map((msg) =>
+            msg.id === messageId ? { ...msg, content } : msg
+          );
+        });
+      })
+      // Listen for message deletions
+      .on('broadcast', { event: EVENT_MESSAGE_DELETE }, (payload) => {
+        const { messageId } = payload.payload as {
+          messageId: string;
+          deletedBy: string;
+          deletedAt: string;
+        };
+        
+        console.log('🗑️ Real-time delete received:', messageId);
+
+        setMessages((current) => {
+          return current.filter((msg) => msg.id !== messageId);
         });
       })
       .subscribe((status) => {
@@ -108,5 +140,6 @@ export function useRealtimeMessages(contactLinkId: string) {
     messages,
     sendMessage,
     isConnected,
+    channel,
   };
 }

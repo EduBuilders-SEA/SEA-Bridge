@@ -350,6 +350,7 @@ export default function ParentChatPageClient({
                 currentUserId={user.uid}
                 onSimplify={handleSimplify}
                 onSummarize={handleSummarize}
+                contactId={contactId}
               />
             ))}
           </div>

@@ -140,6 +140,17 @@ create policy "Users can send messages in their conversations"
     )
   );
 
+-- Add UPDATE policy for messages
+CREATE POLICY "Users can update their own messages"
+  ON messages FOR UPDATE
+  USING (sender_id = auth.jwt() ->> 'sub')
+  WITH CHECK (sender_id = auth.jwt() ->> 'sub');
+
+-- Add DELETE policy for messages  
+CREATE POLICY "Users can delete their own messages"
+  ON messages FOR DELETE
+  USING (sender_id = auth.jwt() ->> 'sub');
+
 -- ATTENDANCE POLICIES
 create policy "Teachers can view attendance for their students"
   on attendance for select

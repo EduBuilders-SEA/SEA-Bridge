@@ -49,11 +49,23 @@ export const SendMessageSchema = z.object({
   file_url: z.string().url().nullable().optional(),
 })
 
+
+export const EditMessageSchema = z.object({
+  content: z.string().min(1, "Message cannot be empty"),
+});
+
+export const DeleteMessageSchema = z.object({
+  messageId: z.string().uuid(),
+});
+
+
 // ✅ Export types
 export type Message = z.infer<typeof MessageSchema>
 export type MessageRow = z.infer<typeof MessageRowSchema>
 export type ChatMessage = z.infer<typeof ChatMessageSchema>
 export type SendMessageData = z.infer<typeof SendMessageSchema>
+export type EditMessageData = z.infer<typeof EditMessageSchema>;
+export type DeleteMessageData = z.infer<typeof DeleteMessageSchema>;
 
 // ✅ Transformation utility
 export function transformMessageRow(row: MessageRow): ChatMessage {
