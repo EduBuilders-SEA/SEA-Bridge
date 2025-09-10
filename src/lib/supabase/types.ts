@@ -1,3 +1,5 @@
+import type { createClient } from '@/lib/supabase/client';
+
 export type Json =
   | string
   | number
@@ -317,3 +319,8 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
+
+
+
+export type SupabaseChannel = ReturnType<ReturnType<typeof createClient>['channel']> | null;

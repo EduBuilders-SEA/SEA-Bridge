@@ -214,14 +214,18 @@ export default function ParentContactsPage() {
                   <h3 className='font-headline font-semibold'>
                     {(contact as any).label ??
                       contact.teacher?.name ??
-                      contact.teacher?.phone ??
                       'Pending'}
                   </h3>
                   <p className='text-sm text-muted-foreground'>
                     {(contact as any).label
-                      ? contact.teacher?.name ?? contact.teacher?.phone ?? ''
+                      ? contact.teacher?.name ?? ''
                       : 'Teacher'}
                   </p>
+                  {contact.teacher?.phone && (
+                    <p className='text-xs text-muted-foreground mt-1'>
+                      {contact.teacher.phone}
+                    </p>
+                  )}
                   <div className='mt-4 flex gap-2'>
                     <TooltipProvider delayDuration={0}>
                       <Tooltip>

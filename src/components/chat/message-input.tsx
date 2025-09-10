@@ -1,8 +1,5 @@
+'use client';
 
-"use client";
-
-import { useState, useRef } from 'react';
-import { Send, Paperclip, Mic, MessageSquareText, StopCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -10,40 +7,77 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from '@/components/ui/tooltip';
+import { useMessagePersistence } from '@/hooks/use-message-persistence';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import type { ChatMessage } from '@/lib/schemas';
+import {
+  MessageSquareText,
+  Mic,
+  Paperclip,
+  Send,
+  StopCircle,
+} from 'lucide-react';
+import React, { useRef, useState } from 'react';
 
 type MessageInputProps = {
-  onSendMessage: (content: string) => void;
-  onSendSms?: (content: string) => void;
-  onSendVoice?: (audioDataUri: string) => void;
-  onSendFile?: (file: File) => void;
+  contactId: string;
+  onSendMessage: (content: string) => Promise<ChatMessage | null | void>;
+  onSendSms?: (content: string) => Promise<ChatMessage | null | void>;
+  onSendVoice?: (audioDataUri: string) => Promise<ChatMessage | null | void>;
+  onSendFile?: (file: File) => Promise<ChatMessage | null | void>;
   placeholder?: string;
 };
 
-export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, onSendFile, placeholder }: MessageInputProps) {
+export default function MessageInput({
+  contactId,
+  onSendMessage,
+  onSendSms,
+  onSendVoice,
+  onSendFile,
+  placeholder,
+}: MessageInputProps) {
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { persistMessage } = useMessagePersistence();
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (text.trim()) {
-      onSendMessage(text);
+      const sent = await onSendMessage(text);
+
+      persistMessage({
+        id: sent?.id,
+        sent_at: sent?.sent_at,
+        content: text,
+        message_type: 'text',
+        contact_link_id: contactId,
+      });
+
       setText('');
     }
   };
 
-  const handleSendSms = () => {
+  const handleSendSms = async () => {
     if (text.trim() && onSendSms) {
-      onSendSms(text);
+      const sent = await onSendSms(text);
+
+      persistMessage({
+        id: sent?.id,
+        sent_at: sent?.sent_at,
+        content: `[SMS] ${text}`,
+        message_type: 'text',
+        contact_link_id: contactId,
+      });
+
       setText('');
     }
   };
-  
+
   const handleStartRecording = async () => {
     if (isRecording || !onSendVoice) return;
 
@@ -56,15 +90,28 @@ export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, on
         audioChunksRef.current.push(event.data);
       };
 
-      mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: 'audio/webm',
+        });
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
-          onSendVoice(reader.result as string);
+        reader.onloadend = async () => {
+          const audioDataUri = reader.result as string;
+
+          const sent = onSendVoice ? await onSendVoice(audioDataUri) : undefined;
+
+          persistMessage({
+            id: sent?.id,
+            sent_at: sent?.sent_at,
+            content: 'Voice note',
+            message_type: 'audio',
+            contact_link_id: contactId,
+            file_url: audioDataUri,
+          });
         };
-        // Stop all tracks to release the microphone
-        stream.getTracks().forEach(track => track.stop());
+
+        stream.getTracks().forEach((track) => track.stop());
       };
 
       mediaRecorderRef.current.start();
@@ -74,7 +121,8 @@ export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, on
       toast({
         variant: 'destructive',
         title: 'Microphone Access Denied',
-        description: 'Please enable microphone permissions in your browser settings.',
+        description:
+          'Please enable microphone permissions in your browser settings.',
       });
     }
   };
@@ -94,17 +142,25 @@ export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, on
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && onSendFile) {
-      onSendFile(file);
+      const sent = await onSendFile(file);
+
+      persistMessage({
+        id: sent?.id,
+        sent_at: sent?.sent_at,
+        content: `📎 ${file.name} (${(file.size / 1024).toFixed(1)}KB)`,
+        message_type: 'document',
+        contact_link_id: contactId,
+        file_url: URL.createObjectURL(file),
+      });
     }
-    // Reset file input
-    if(fileInputRef.current) {
-        fileInputRef.current.value = '';
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
-
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -115,33 +171,33 @@ export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, on
 
   return (
     <TooltipProvider>
-      <div className="bg-card p-2 rounded-lg border flex items-center gap-2 transition-all focus-within:ring-2 focus-within:ring-ring ring-offset-background ring-offset-2">
+      <div className='bg-card p-2 rounded-lg border flex items-center gap-2 transition-all focus-within:ring-2 focus-within:ring-ring ring-offset-background ring-offset-2'>
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder={placeholder || 'Type your message...'}
-          className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none min-h-[40px] h-10"
+          placeholder={placeholder ?? 'Type your message...'}
+          className='flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none min-h-[40px] h-10'
           rows={1}
           disabled={isRecording}
         />
         <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            />
+          type='file'
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          className='hidden'
+        />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button 
-                variant="ghost" 
-                size="icon" 
-                className="text-muted-foreground hover:text-primary shrink-0"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={!onSendFile}
+            <Button
+              variant='ghost'
+              size='icon'
+              className='text-muted-foreground hover:text-primary shrink-0'
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!onSendFile}
             >
-              <Paperclip className="w-5 h-5" />
-              <span className="sr-only">Attach file</span>
+              <Paperclip className='w-5 h-5' />
+              <span className='sr-only'>Attach file</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>
@@ -150,29 +206,40 @@ export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, on
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button 
-              onClick={handleVoiceClick} 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              onClick={handleVoiceClick}
+              variant='ghost'
+              size='icon'
               className={cn(
-                "text-muted-foreground hover:text-primary shrink-0",
-                isRecording && "text-red-500 hover:text-red-600"
+                'text-muted-foreground hover:text-primary shrink-0',
+                isRecording && 'text-red-500 hover:text-red-600'
               )}
             >
-              {isRecording ? <StopCircle className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
-              <span className="sr-only">{isRecording ? "Stop recording" : "Record voice note"}</span>
+              {isRecording ? (
+                <StopCircle className='w-5 h-5 animate-pulse' />
+              ) : (
+                <Mic className='w-5 h-5' />
+              )}
+              <span className='sr-only'>
+                {isRecording ? 'Stop recording' : 'Record voice note'}
+              </span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>{isRecording ? "Stop recording" : "Send voice note"}</p>
+            <p>{isRecording ? 'Stop recording' : 'Send voice note'}</p>
           </TooltipContent>
         </Tooltip>
         {onSendSms && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button onClick={handleSendSms} variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0">
-                <MessageSquareText className="w-5 h-5" />
-                <span className="sr-only">Send as SMS</span>
+              <Button
+                onClick={handleSendSms}
+                variant='ghost'
+                size='icon'
+                className='text-muted-foreground hover:text-primary shrink-0'
+              >
+                <MessageSquareText className='w-5 h-5' />
+                <span className='sr-only'>Send as SMS</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -180,9 +247,14 @@ export default function MessageInput({ onSendMessage, onSendSms, onSendVoice, on
             </TooltipContent>
           </Tooltip>
         )}
-        <Button onClick={handleSend} size="icon" className="bg-accent hover:bg-accent/90 text-accent-foreground shrink-0" disabled={isRecording}>
-          <Send className="w-5 h-5" />
-          <span className="sr-only">Send</span>
+        <Button
+          onClick={handleSend}
+          size='icon'
+          className='bg-accent hover:bg-accent/90 text-accent-foreground shrink-0'
+          disabled={isRecording}
+        >
+          <Send className='w-5 h-5' />
+          <span className='sr-only'>Send</span>
         </Button>
       </div>
     </TooltipProvider>
