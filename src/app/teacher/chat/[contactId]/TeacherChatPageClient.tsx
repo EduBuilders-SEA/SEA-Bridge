@@ -116,7 +116,7 @@ export default function TeacherChatPageClient({
     try {
       const result = await chunkMessageForSms({ content });
       const parentName =
-        contact.parent?.name || contact.parent?.phone || 'Parent';
+        contact.parent?.name ?? contact.parent?.phone ?? 'Parent';
       const smsContent = `(Simulated SMS sent to ${parentName})\n---\n${result.chunks.join(
         '\n---\n'
       )}`;
@@ -153,7 +153,7 @@ export default function TeacherChatPageClient({
     try {
       const result = await transcribeAndTranslate({
         audioDataUri,
-        targetLanguage: contact.parent?.preferred_language || 'English',
+        targetLanguage: 'English',
       });
 
       sendMessage({
@@ -188,8 +188,10 @@ export default function TeacherChatPageClient({
     try {
       const conversationToSummarize = messages.map(
         ({ sender_id, content }) => ({
-          sender: sender_id === user.uid ? 'teacher' : 'parent',
-          content,
+          sender: (sender_id === user.uid ? 'teacher' : 'parent') as
+            | 'teacher'
+            | 'parent',
+          content: String(content),
         })
       );
       const result = await summarizeConversation({
@@ -220,7 +222,7 @@ export default function TeacherChatPageClient({
     }
   };
 
-  const parentName = contact.parent?.name || contact.parent?.phone || 'Parent';
+  const parentName = contact.parent?.name ?? contact.parent?.phone ?? 'Parent';
   const layoutTitle = `Conversation with ${parentName}`;
   const layoutUser = {
     name: teacher.name,
@@ -250,7 +252,11 @@ export default function TeacherChatPageClient({
             ref={scrollAreaRef}
           >
             {messages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} currentUser='teacher' />
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                currentUserId={user.uid}
+              />
             ))}
           </div>
           <div className='p-4 md:p-6 pt-2 border-t bg-background'>

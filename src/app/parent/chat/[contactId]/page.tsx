@@ -16,7 +16,6 @@ import {
   ProgressSummaryCard,
   ProgressSummaryCardSkeleton,
 } from '@/components/chat/progress-summary-card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { useCurrentProfile } from '@/hooks/use-profile';
@@ -25,6 +24,7 @@ import { contacts } from '@/lib/contacts';
 import { conversation, documentContent, type Message } from '@/lib/data';
 import { notFound, useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useState } from 'react';
+import { ChatSkeleton } from '@/components/chat/chat-skeleton';
 
 type DisplayMessage = Message & {
   translatedContent?: string;
@@ -39,32 +39,6 @@ type DisplayMessage = Message & {
   fileUrl?: string;
 };
 
-function ChatSkeleton() {
-  return (
-    <div className='flex flex-col h-full'>
-      <div className='flex justify-center p-2 border-b'>
-        <div className='flex items-center space-x-2'>
-          <Skeleton className='h-8 w-20' />
-          <Skeleton className='h-8 w-20' />
-        </div>
-      </div>
-      <div className='flex-1 space-y-4 overflow-y-auto p-4 md:p-6'>
-        <div className='flex items-end gap-2 justify-start'>
-          <Skeleton className='h-16 w-3/4 rounded-lg' />
-        </div>
-        <div className='flex items-end gap-2 justify-end'>
-          <Skeleton className='h-12 w-1/2 rounded-lg' />
-        </div>
-        <div className='flex items-end gap-2 justify-start'>
-          <Skeleton className='h-24 w-3/4 rounded-lg' />
-        </div>
-      </div>
-      <div className='p-4 md:p-6 pt-2 border-t bg-background'>
-        <Skeleton className='h-10 w-full' />
-      </div>
-    </div>
-  );
-}
 
 function ParentChatPageComponent({
   params: { contactId },
@@ -79,7 +53,7 @@ function ParentChatPageComponent({
     null
   );
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [messages, setMessages] = useState<DisplayMessage[]>(conversation);
+  const [messages, setMessages] = useState<DisplayMessage[]>();
   const [parentLanguage, setParentLanguage] = useState(lang ?? 'English');
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
