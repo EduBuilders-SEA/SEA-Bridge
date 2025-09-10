@@ -16,6 +16,7 @@ export function useMessageDelete(contactId: string, channel: SupabaseChannel) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+
   const deleteMessage = useMutation({
     mutationFn: async (messageId: string) => {
       if (!user?.uid) throw new Error('User not authenticated');
@@ -40,12 +41,18 @@ export function useMessageDelete(contactId: string, channel: SupabaseChannel) {
         throw error;
       }
 
+
       console.log('✅ Database delete successful:', data);
 
-      const broadcastChannel = supabase.channel(channel?.topic ?? '');
+      if (!channel) {
+        alert('Something went wrong. Please try again.');
+        console.warn('⚠️ There is no channel to broadcast the message delete.');
+        return;
+      }
+
 
       try {
-        await broadcastChannel.send({
+        await channel.send({
           type: 'broadcast',
           event: EVENT_MESSAGE_DELETE,
           payload: {
@@ -60,9 +67,6 @@ export function useMessageDelete(contactId: string, channel: SupabaseChannel) {
           '⚠️ Broadcast failed, but database delete succeeded:',
           broadcastError
         );
-      } finally {
-        // Clean up the temporary channel
-        supabase.removeChannel(broadcastChannel);
       }
 
       return messageId;

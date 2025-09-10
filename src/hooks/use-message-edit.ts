@@ -57,10 +57,15 @@ export function useMessageEdit(
 
       console.log('✅ Database update successful:', data);
 
-      const broadcastChannel = supabase.channel(channel?.topic ?? '');
+      if (!channel) {
+        alert('Something went wrong. Please try again.');
+        console.warn('⚠️ There is no channel to broadcast the message edit.');
+        return;
+      }
 
       try {
-        await broadcastChannel.send({
+
+        await channel.send({
           type: 'broadcast',
           event: EVENT_MESSAGE_EDIT,
           payload: {
@@ -76,10 +81,7 @@ export function useMessageEdit(
           '⚠️ Broadcast failed, but database update succeeded:',
           broadcastError
         );
-      } finally {
-        // Clean up the temporary channel
-        supabase.removeChannel(broadcastChannel);
-      }
+      } 
 
       return data;
     },

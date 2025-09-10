@@ -71,7 +71,7 @@ export function useRealtimeMessages(contactLinkId: string) {
     const newChannel = supabase
       .channel(channelName, {
         config: {
-          broadcast: { self: false }, // Don't receive your own messages
+          broadcast: { self: true }, // Don't receive your own messages
         },
       })
       // Listen for new messages
