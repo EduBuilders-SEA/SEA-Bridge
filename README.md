@@ -24,20 +24,6 @@ Environment variables: see the "Environment Variables Required" section in `CLAU
    npm run dev
    ```
 
-3. Expose the local server via ngrok and copy the HTTPS forwarding URL
-
-   ```bash
-   npm run dev:tunnel
-   ```
-
-   or
-
-   ```bash
-   ngrok http http://localhost:9002
-   ```
-
-4. In the Firebase Console, go to Authentication → Settings → Authorized domains and add the ngrok domain (e.g., `abcd-123-45-67-89.ngrok-free.app`).
-
 ## Important: OTP (Phone Auth)
 
 - OTP verification only works when accessed through the ngrok HTTPS domain and that exact domain is added to Firebase Authentication authorized domains.
