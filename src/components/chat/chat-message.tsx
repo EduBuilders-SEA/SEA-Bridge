@@ -1,5 +1,6 @@
 'use client';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import {
@@ -19,11 +20,13 @@ import {
 import { useMessageDelete } from '@/hooks/use-message-delete';
 import { useMessageEdit } from '@/hooks/use-message-edit';
 import type { ChatMessage } from '@/lib/schemas';
+import type { SupabaseChannel } from '@/lib/supabase/types';
 import { cn, formatMessageTime } from '@/lib/utils';
 import {
   Download,
   Edit3,
   FileText,
+  Globe,
   Loader2,
   MoreHorizontal,
   Pause,
@@ -36,19 +39,66 @@ import {
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { Slider } from '../ui/slider';
-import type { SupabaseChannel } from '@/lib/supabase/types';
 
 type ChatMessageProps = {
   message: ChatMessage;
   currentUserId: string;
   contactId: string;
+  isTranslating?: boolean;
   onSimplify?: (id: string) => void;
   onSummarize?: (id: string) => void;
   channel: SupabaseChannel;
+  isNewMessage?: boolean;
 };
 
 import React from 'react';
+import { DocumentTranslator } from './document-translator';
 
+interface MessageTranslationStatusProps {
+  isTranslating: boolean;
+  translationModel?: 'sea-lion' | 'gemini' | 'hybrid';
+  originalLanguage?: string;
+  translatedLanguage?: string;
+}
+
+function MessageTranslationStatus({
+  isTranslating,
+  translationModel,
+  originalLanguage,
+  translatedLanguage,
+}: MessageTranslationStatusProps) {
+  if (isTranslating) {
+    return (
+      <div className='flex items-center gap-2 text-xs text-muted-foreground mt-1'>
+        <Loader2 className='w-3 h-3 animate-spin' />
+        <span>Translating with Sea-Lion...</span>
+      </div>
+    );
+  }
+
+  if (translationModel) {
+    return (
+      <div className='flex items-center gap-2 mt-1'>
+        <Badge variant='outline' className='text-xs py-0 h-5'>
+          {translationModel === 'sea-lion' ? (
+            <>🦁 Sea-Lion</>
+          ) : translationModel === 'gemini' ? (
+            <>✨ Gemini</>
+          ) : (
+            <>🦁✨ Hybrid</>
+          )}
+        </Badge>
+        {originalLanguage && translatedLanguage && (
+          <span className='text-xs text-muted-foreground'>
+            {originalLanguage} → {translatedLanguage}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return null;
+}
 
 const AiActionButton = ({
   isLoading,
@@ -202,9 +252,11 @@ const VoiceNotePlayer = ({
 const MessageContent = ({
   message,
   isSentByCurrentUser,
+  isTranslating = false,
 }: {
   message: ChatMessage;
   isSentByCurrentUser: boolean;
+  isTranslating?: boolean;
 }) => {
   if (message.message_type === 'image') {
     const isImage =
@@ -230,48 +282,45 @@ const MessageContent = ({
             </div>
           </a>
         ) : (
-          <a
-            href={message.file_url ?? '#'}
-            download={message.content}
+          <div
             className={cn(
-              'flex items-center gap-3 p-3 rounded-md transition-colors',
-              isSentByCurrentUser
-                ? 'bg-primary-foreground/10 hover:bg-primary-foreground/20'
-                : 'bg-muted hover:bg-muted/80'
+              'p-3 rounded-md',
+              isSentByCurrentUser ? 'bg-primary-foreground/10' : 'bg-muted'
             )}
           >
-            <FileText className='w-6 h-6 text-primary flex-shrink-0' />
-            <div className='flex-1 overflow-hidden'>
-              <p
-                className={cn(
-                  'font-medium font-body truncate',
-                  isSentByCurrentUser
-                    ? 'text-primary-foreground'
-                    : 'text-card-foreground'
-                )}
-              >
-                {message.content}
-              </p>
-              <p
-                className={cn(
-                  'text-xs',
-                  isSentByCurrentUser
-                    ? 'text-primary-foreground/80'
-                    : 'text-muted-foreground'
-                )}
-              >
-                Click to download
-              </p>
+            <div className='flex items-center gap-3 mb-3'>
+              <FileText className='w-6 h-6 text-primary flex-shrink-0' />
+              <div className='flex-1 overflow-hidden'>
+                <p
+                  className={cn(
+                    'font-medium font-body truncate',
+                    isSentByCurrentUser
+                      ? 'text-primary-foreground'
+                      : 'text-card-foreground'
+                  )}
+                >
+                  {message.content}
+                </p>
+                <p
+                  className={cn(
+                    'text-xs',
+                    isSentByCurrentUser
+                      ? 'text-primary-foreground/80'
+                      : 'text-muted-foreground'
+                  )}
+                >
+                  Click to download or translate
+                </p>
+              </div>
             </div>
-            <Download
-              className={cn(
-                'w-5 h-5',
-                isSentByCurrentUser
-                  ? 'text-primary-foreground/80'
-                  : 'text-muted-foreground'
-              )}
-            />
-          </a>
+            {message.file_url && (
+              <DocumentTranslator
+                fileUrl={message.file_url}
+                fileName={message.content}
+                sourceLanguage={message.variants?.originalLanguage}
+              />
+            )}
+          </div>
         )}
         {(message.variants?.isSummarizing ?? message.variants?.summary) && (
           <div className='mt-3 pt-3 border-t border-border/50'>
@@ -389,48 +438,88 @@ const MessageContent = ({
       </div>
     );
   }
+  const [displayMode, setDisplayMode] = useState<
+    'translated' | 'original' | 'both'
+  >('translated');
+
+  const hasTranslation = !!message.variants?.translatedContent;
+  const content =
+    hasTranslation && displayMode !== 'original'
+      ? message.variants?.translatedContent
+      : message.content;
+
   return (
-    <>
-      <p className='font-body text-sm whitespace-pre-wrap'>{message.content}</p>
-      {(message.variants?.isTranslating ??
-        message.variants?.translatedContent) && (
-        <div className='mt-3 pt-3 border-t border-border/50'>
-          <p
-            className={cn(
-              'text-xs font-bold mb-1 font-headline',
-              isSentByCurrentUser ? 'text-primary-foreground' : 'text-primary'
-            )}
+    <div className='space-y-2'>
+      {/* Toggle for viewing original/translated */}
+      {hasTranslation && !isSentByCurrentUser && (
+        <div className='flex items-center gap-2'>
+          <button
+            onClick={() =>
+              setDisplayMode(
+                displayMode === 'translated' ? 'original' : 'translated'
+              )
+            }
+            className='text-xs text-primary hover:underline flex items-center gap-1'
           >
-            Translation
-          </p>
-          {message.variants?.isTranslating &&
-            !message.variants?.translatedContent && (
-              <div
-                className={cn(
-                  'flex items-center gap-2',
-                  isSentByCurrentUser
-                    ? 'text-primary-foreground/90'
-                    : 'text-card-foreground/90'
-                )}
-              >
-                <Loader2 className='w-4 h-4 animate-spin' />
-                <span className='text-sm'>Translating...</span>
-              </div>
-            )}
-          {message.variants?.translatedContent && (
-            <p
-              className={cn(
-                'font-body text-sm',
-                isSentByCurrentUser
-                  ? 'text-primary-foreground/90'
-                  : 'text-card-foreground/90'
-              )}
+            <Globe className='w-3 h-3' />
+            {displayMode === 'translated'
+              ? 'Show Original'
+              : 'Show Translation'}
+          </button>
+          {displayMode === 'translated' && (
+            <button
+              onClick={() => setDisplayMode('both')}
+              className='text-xs text-primary hover:underline'
             >
-              {message.variants.translatedContent}
-            </p>
+              Show Both
+            </button>
           )}
         </div>
       )}
+
+      {/* Message content */}
+      <div className='space-y-2'>
+        {displayMode === 'both' && hasTranslation ? (
+          <>
+            <div className='space-y-1'>
+              <span className='text-xs font-medium text-muted-foreground'>
+                Translation:
+              </span>
+              <p className='font-body text-sm whitespace-pre-wrap'>
+                {message.variants?.translatedContent}
+              </p>
+            </div>
+            <div className='space-y-1 opacity-75'>
+              <span className='text-xs font-medium text-muted-foreground'>
+                Original ({message.variants?.originalLanguage}):
+              </span>
+              <p className='font-body text-sm whitespace-pre-wrap italic'>
+                {message.content}
+              </p>
+            </div>
+          </>
+        ) : (
+          <p
+            className={cn(
+              'font-body text-sm whitespace-pre-wrap',
+              displayMode === 'original' &&
+                hasTranslation &&
+                'italic opacity-75'
+            )}
+          >
+            {content}
+          </p>
+        )}
+      </div>
+
+      {/* Translation status */}
+      <MessageTranslationStatus
+        isTranslating={isTranslating}
+        translationModel={message.variants?.translationModel}
+        originalLanguage={message.variants?.originalLanguage}
+        translatedLanguage={message.variants?.translatedLanguage}
+      />
+
       {message.variants?.simplifiedContent && (
         <div className='mt-3 pt-3 border-t border-border/50'>
           <p
@@ -453,7 +542,7 @@ const MessageContent = ({
           </p>
         </div>
       )}
-    </>
+    </div>
   );
 };
 
@@ -472,7 +561,6 @@ const MessageActions = ({
   isEditing: boolean;
   isDeleting: boolean;
 }) => {
-
   // Only show actions for own messages
   if (message.sender_id !== currentUserId) return null;
 
@@ -524,14 +612,22 @@ export default function ChatMessageComponent({
   message,
   currentUserId,
   contactId,
+  isTranslating = false,
   onSimplify,
   onSummarize,
   channel,
+  isNewMessage = false,
 }: ChatMessageProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
-  const { editMessage, isEditing: isEditingMutate } = useMessageEdit(contactId, channel);
-  const { deleteMessage, isDeleting: isDeletingMutate } = useMessageDelete(contactId, channel);
+  const { editMessage, isEditing: isEditingMutate } = useMessageEdit(
+    contactId,
+    channel
+  );
+  const { deleteMessage, isDeleting: isDeletingMutate } = useMessageDelete(
+    contactId,
+    channel
+  );
 
   const isSentByCurrentUser = message.sender_id === currentUserId;
 
@@ -593,7 +689,8 @@ export default function ChatMessageComponent({
             'shadow-md transition-all',
             isSentByCurrentUser
               ? 'bg-primary text-primary-foreground'
-              : 'bg-card'
+              : 'bg-card',
+            isNewMessage && 'animate-new-message'
           )}
         >
           <CardContent className={cardPadding}>
@@ -631,6 +728,7 @@ export default function ChatMessageComponent({
                   <MessageContent
                     message={message}
                     isSentByCurrentUser={isSentByCurrentUser}
+                    isTranslating={isTranslating}
                   />
                 </div>
 

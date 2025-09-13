@@ -8,7 +8,6 @@ import {
 } from '@/ai/flows/summarize-conversation';
 import { summarizeDocument } from '@/ai/flows/summarize-document';
 import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
-import { translateMessage } from '@/ai/flows/translate-message';
 import ChatMessage from '@/components/chat/chat-message';
 import ChatPageLayout from '@/components/chat/chat-page-layout';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
@@ -17,14 +16,16 @@ import {
   ProgressSummaryCard,
   ProgressSummaryCardSkeleton,
 } from '@/components/chat/progress-summary-card';
+import { useLanguageStore } from '@/components/store/language-store';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { useContacts } from '@/hooks/use-contacts';
+import { useFastAutoTranslation } from '@/hooks/use-fast-auto-translation';
 import { useMessageQuery } from '@/hooks/use-message-query';
 import { useCurrentProfile } from '@/hooks/use-profile';
 import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
 import { useToast } from '@/hooks/use-toast';
-import { notFound, useRouter, useSearchParams } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 export default function ParentChatPageClient({
@@ -35,9 +36,13 @@ export default function ParentChatPageClient({
   const { user, loading: authLoading } = useAuth();
   const { data: profile, isLoading: profileLoading } = useCurrentProfile();
   const { contacts, isLoading: contactsLoading } = useContacts();
-  const { messages: realtimeMessages, sendMessage, channel } =
-    useRealtimeMessages(contactId);
-  const { data: initialMessages, isLoading: messagesLoading } =
+  const {
+    messages: realtimeMessages,
+    sendMessage,
+    channel,
+    newMessageIds,
+  } = useRealtimeMessages(contactId);
+  const { data: initialMessages, isLoading: _messagesLoading } =
     useMessageQuery(contactId);
 
   // ✅ Better deduplication logic
@@ -52,7 +57,14 @@ export default function ParentChatPageClient({
     );
   }, [initialMessages, realtimeMessages]);
 
-  const searchParams = useSearchParams();
+  const { selectedLanguage: parentLanguage } = useLanguageStore();
+
+  // ✅ Auto-translation integration
+  const {
+    messages: translatedMessages,
+    isTranslating,
+    userLanguage: _userLanguage,
+  } = useFastAutoTranslation(allMessages, user?.uid ?? '', parentLanguage);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const router = useRouter();
@@ -62,8 +74,6 @@ export default function ParentChatPageClient({
     null
   );
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const lang = searchParams.get('lang');
-  const [parentLanguage] = useState(lang ?? 'English');
 
   // Find the contact from the real contacts data
   const contact = contacts.find((c) => c.id === contactId);
@@ -129,11 +139,7 @@ export default function ParentChatPageClient({
   //   }
   // }, [parentLanguage, allMessages, user?.uid, toast]);
 
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
-  }, [allMessages]);
+  // ❌ Removed auto-scroll - let users control their own scrolling!
 
   // Show loading while any required data is loading
   if (authLoading || profileLoading || contactsLoading) {
@@ -209,7 +215,7 @@ export default function ParentChatPageClient({
     try {
       const result = await transcribeAndTranslate({
         audioDataUri,
-        targetLanguage: 'English',
+        targetLanguage: parentLanguage,
       });
 
       sendMessage({
@@ -327,7 +333,11 @@ export default function ParentChatPageClient({
   } as const;
 
   return (
-    <ChatPageLayout title={layoutTitle} user={layoutUser}>
+    <ChatPageLayout
+      title={layoutTitle}
+      user={layoutUser}
+      userLanguage={parentLanguage}
+    >
       <Tabs
         defaultValue='chat'
         className='flex-1 flex flex-col overflow-hidden'
@@ -347,15 +357,17 @@ export default function ParentChatPageClient({
             className='flex-1 space-y-4 overflow-y-auto p-4 md:p-6'
             ref={scrollAreaRef}
           >
-            {allMessages.map((msg) => (
+            {translatedMessages.map((msg) => (
               <ChatMessage
                 key={msg.id}
                 message={msg}
                 currentUserId={user.uid}
+                isTranslating={isTranslating.has(msg.id)}
                 onSimplify={handleSimplify}
                 onSummarize={handleSummarize}
                 contactId={contactId}
                 channel={channel}
+                isNewMessage={newMessageIds.has(msg.id)}
               />
             ))}
           </div>

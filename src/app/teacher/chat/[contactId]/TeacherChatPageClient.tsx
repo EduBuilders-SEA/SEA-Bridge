@@ -1,12 +1,9 @@
 'use client';
 
 import { chunkMessageForSms } from '@/ai/flows/chunk-message-for-sms';
-import {
-  summarizeConversation,
-  type SummarizeConversationOutput,
-} from '@/ai/flows/summarize-conversation';
+import { type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
 import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
-import { AttendanceForm } from '@/components/chat/attendance-form';
+// import { AttendanceForm } from '@/components/chat/attendance-form';
 import ChatMessage from '@/components/chat/chat-message';
 import ChatPageLayout from '@/components/chat/chat-page-layout';
 import { DateRangePicker } from '@/components/chat/date-range-picker';
@@ -15,9 +12,12 @@ import {
   ProgressSummaryCard,
   ProgressSummaryCardSkeleton,
 } from '@/components/chat/progress-summary-card';
+import { useLanguageStore } from '@/components/store/language-store';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { useContacts } from '@/hooks/use-contacts';
+import { useFastAutoTranslation } from '@/hooks/use-fast-auto-translation';
 import { useMessageQuery } from '@/hooks/use-message-query';
 import { useCurrentProfile } from '@/hooks/use-profile';
 import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Attendance } from '@/lib/schemas';
 import { notFound, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { DateRange } from 'react-day-picker';
 
 export default function TeacherChatPageClient({
   contactId,
@@ -34,8 +35,12 @@ export default function TeacherChatPageClient({
   const { user, loading: authLoading } = useAuth();
   const { data: profile, isLoading: profileLoading } = useCurrentProfile();
   const { contacts, isLoading: contactsLoading } = useContacts();
-  const { messages: realtimeMessages, sendMessage, channel } =
-    useRealtimeMessages(contactId);
+  const {
+    messages: realtimeMessages,
+    sendMessage,
+    channel,
+    newMessageIds,
+  } = useRealtimeMessages(contactId);
   const { data: initialMessages, isLoading: messagesLoading } =
     useMessageQuery(contactId);
 
@@ -51,6 +56,15 @@ export default function TeacherChatPageClient({
     );
   }, [initialMessages, realtimeMessages]);
 
+  const { selectedLanguage: teacherLanguage } = useLanguageStore();
+
+  // ✅ Auto-translation integration
+  const {
+    messages: translatedMessages,
+    isTranslating,
+    userLanguage,
+  } = useFastAutoTranslation(allMessages, user?.uid ?? '', teacherLanguage);
+
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [teacherName, setTeacherName] = useState('Teacher');
@@ -58,11 +72,8 @@ export default function TeacherChatPageClient({
     null
   );
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [attendance, setAttendance] = useState<Attendance>({
-    present: 18,
-    absent: 1,
-    tardy: 1,
-  });
+  const [_attendance, setAttendance] = useState<Attendance | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const router = useRouter();
 
   // Find the contact from the real contacts data
@@ -80,11 +91,7 @@ export default function TeacherChatPageClient({
     }
   }, [user, profile, authLoading, profileLoading, router]);
 
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-    }
-  }, [realtimeMessages]);
+  // ❌ Removed auto-scroll - let users control their own scrolling!
 
   // ✅ Include messagesLoading in loading check
   if (authLoading || profileLoading || contactsLoading || messagesLoading) {
@@ -186,21 +193,25 @@ export default function TeacherChatPageClient({
     });
   };
 
-  const generateSummary = async (currentAttendance: Attendance) => {
+  const generateSummary = async () => {
     setIsGeneratingSummary(true);
     setSummary(null);
     try {
-      const conversationToSummarize = realtimeMessages.map((msg) => ({
-        sender: (msg.sender_id === user.uid ? 'teacher' : 'parent') as
-          | 'teacher'
-          | 'parent',
-        content: String(msg.content),
-      }));
-      const result = await summarizeConversation({
-        messages: conversationToSummarize,
-        attendance: currentAttendance,
+      const from = dateRange?.from?.toISOString();
+      const to = dateRange?.to?.toISOString();
+      const res = await fetch('/api/summary/monthly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId, from, to, sendRiskAlert: true }),
       });
-      setSummary(result);
+      if (!res.ok) throw new Error('Request failed');
+      const result = await res.json();
+      setSummary({
+        summaryText: result.summaryText,
+        actionItems: result.actionItems,
+        attendance: result.attendance,
+      });
+      setAttendance(result.attendance ?? null);
     } catch (error) {
       console.error('Failed to generate summary:', error);
       toast({
@@ -213,14 +224,11 @@ export default function TeacherChatPageClient({
     }
   };
 
-  const handleUpdateAttendance = (newAttendance: Attendance) => {
-    setAttendance(newAttendance);
-    generateSummary(newAttendance);
-  };
+  // Attendance is now aggregated from DB; manual updates disabled.
 
   const onTabChange = (tab: string) => {
-    if (tab === 'summary' && !summary && !isGeneratingSummary) {
-      generateSummary(attendance);
+    if (tab === 'summary' && !isGeneratingSummary) {
+      generateSummary();
     }
   };
 
@@ -233,7 +241,11 @@ export default function TeacherChatPageClient({
   } as const;
 
   return (
-    <ChatPageLayout title={layoutTitle} user={layoutUser}>
+    <ChatPageLayout
+      title={layoutTitle}
+      user={layoutUser}
+      userLanguage={userLanguage}
+    >
       <Tabs
         defaultValue='chat'
         className='flex-1 flex flex-col overflow-hidden'
@@ -253,17 +265,19 @@ export default function TeacherChatPageClient({
             className='flex-1 space-y-4 overflow-y-auto p-4 md:p-6'
             ref={scrollAreaRef}
           >
-            {allMessages.map((msg) => (
+            {translatedMessages.map((msg) => (
               <ChatMessage
                 key={msg.id}
                 message={msg}
                 currentUserId={user.uid}
+                isTranslating={isTranslating.has(msg.id)}
                 contactId={contactId}
                 channel={channel}
+                isNewMessage={newMessageIds.has(msg.id)}
               />
             ))}
           </div>
-          <div className='p-4 md:p-6 pt-2 border-t bg-background'>
+          <div className='p-4 md:p-6 border-t bg-background'>
             <MessageInput
               contactId={contactId}
               onSendMessage={handleSendMessage}
@@ -277,13 +291,13 @@ export default function TeacherChatPageClient({
           value='summary'
           className='flex-1 overflow-y-auto p-4 md:p-6 space-y-6'
         >
-          <div className='flex justify-end'>
-            <DateRangePicker />
+          <div className='flex justify-between items-center gap-2'>
+            <DateRangePicker value={dateRange} onValueChange={setDateRange} />
+            <Button onClick={generateSummary} disabled={isGeneratingSummary}>
+              Generate Summary
+            </Button>
           </div>
-          <AttendanceForm
-            initialData={attendance}
-            onUpdateAttendance={handleUpdateAttendance}
-          />
+          {/* AttendanceForm removed; now computed from DB */}
           {isGeneratingSummary && <ProgressSummaryCardSkeleton />}
           {summary && !isGeneratingSummary && (
             <ProgressSummaryCard

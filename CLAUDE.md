@@ -66,7 +66,7 @@ For the critical SMS notification feature, we use AWS Bedrock for its specialize
 
 - **Provider**: AWS Bedrock
 - **Model**: Sea Lion (for context-aware SEA language translation and smart chunking)
-- **Implementation**: Direct AWS SDK integration within server-side logic (e.g., BullMQ workers). See `src/lib/aws/bedrock-client.ts`.
+- **Implementation**: Direct Ollama integration for blazing fast inference. See `src/lib/ollama/sea-lion-client.ts`.
 - **Key Features**:
     - `translateForSMS`: Translates messages for SMS delivery.
     - `smartChunkForSMS`: Splits messages into context-aware chunks for SMS.
@@ -158,11 +158,12 @@ Components follow atomic design principles:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key  
 - `GOOGLE_GENAI_API_KEY` - Google AI API key for Genkit
 
-**AWS Services (Bedrock & SNS)**
+**AI Services**
+- `OLLAMA_ENDPOINT` - Ollama API endpoint for SEA-LION inference (defaults to http://localhost:11434)
+
+**AWS Services (SNS & S3)**
 - `AWS_ACCESS_KEY_ID` - AWS Access Key for SDK authentication
 - `AWS_SECRET_ACCESS_KEY` - AWS Secret Key for SDK authentication
-- `AWS_BEDROCK_REGION` - AWS region for Bedrock service
-- `SEA_LION_MODEL_ID` - The model identifier for Sea Lion on Bedrock
 - `AWS_SNS_REGION` - AWS region for SNS service
 - `SNS_DELIVERY_STATUS_ROLE` - IAM role ARN for SNS delivery status logging
 - `SNS_USAGE_REPORT_BUCKET` - S3 bucket for SNS usage reports

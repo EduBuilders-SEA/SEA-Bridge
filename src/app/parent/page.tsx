@@ -2,6 +2,7 @@
 
 import { AddContactForm } from '@/components/chat/add-contact-form';
 import Logo from '@/components/logo';
+import { useLanguageStore } from '@/components/store/language-store';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,7 +58,8 @@ import { useEffect, useState } from 'react';
 
 export default function ParentContactsPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [language, setLanguage] = useState('English');
+  const { selectedLanguage: language, setSelectedLanguage: setLanguage } =
+    useLanguageStore();
 
   const { user, loading: authLoading } = useAuth();
   const { data: profile, isLoading: profileLoading } = useCurrentProfile();
@@ -190,12 +192,7 @@ export default function ParentContactsPage() {
           </div>
           <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6'>
             {filteredContacts.map((contact: ContactWithJoins) => (
-              <Link
-                href={`/parent/chat/${contact.id}?lang=${encodeURIComponent(
-                  language
-                )}`}
-                key={contact.id}
-              >
+              <Link href={`/parent/chat/${contact.id}`} key={contact.id}>
                 <Card className='p-4 text-center hover:shadow-lg hover:border-primary transition-all duration-300 cursor-pointer flex flex-col items-center'>
                   <Avatar className='w-20 h-20 mb-4'>
                     <AvatarImage
