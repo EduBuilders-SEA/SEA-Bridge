@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview A flow for transcribing audio and translating the result.
+ * @fileOverview A hybrid flow for transcribing audio (Gemini) and translating (Sea-Lion primary, Gemini fallback).
  *
  * - transcribeAndTranslate - A function that takes audio data and returns a transcription and translation.
  * - TranscribeAndTranslateInput - The input type for the function.
@@ -23,6 +23,7 @@ export type TranscribeAndTranslateInput = z.infer<typeof TranscribeAndTranslateI
 const TranscribeAndTranslateOutputSchema = z.object({
   transcription: z.string().describe('The transcribed text from the audio.'),
   translation: z.string().describe('The translated version of the transcription.'),
+  model: z.enum(['hybrid-sealion', 'gemini-only']).describe('The AI model combination used.'),
 });
 export type TranscribeAndTranslateOutput = z.infer<typeof TranscribeAndTranslateOutputSchema>;
 
@@ -30,31 +31,44 @@ export type TranscribeAndTranslateOutput = z.infer<typeof TranscribeAndTranslate
 export async function transcribeAndTranslate(
   input: TranscribeAndTranslateInput
 ): Promise<TranscribeAndTranslateOutput> {
-  return transcribeAndTranslateFlow(input);
-}
+  const { audioDataUri, targetLanguage } = input;
+  
+  // Step 1: Use Gemini for transcription (multimodal capability)
+  const { text: transcription } = await ai.generate({
+    model: 'googleai/gemini-2.0-flash',
+    prompt: [
+      { text: "Transcribe the following audio. Focus on accuracy and include any background context that might be relevant for parent-teacher communication:" },
+      { media: { url: audioDataUri } }
+    ],
+    config: {
+      responseModalities: ['TEXT'],
+    },
+  });
 
+  if (!transcription) {
+    throw new Error('Failed to transcribe audio.');
+  }
 
-const transcribeAndTranslateFlow = ai.defineFlow(
-  {
-    name: 'transcribeAndTranslateFlow',
-    inputSchema: TranscribeAndTranslateInputSchema,
-    outputSchema: TranscribeAndTranslateOutputSchema,
-  },
-  async ({ audioDataUri, targetLanguage }) => {
-    const { text: transcription } = await ai.generate({
-        model: 'googleai/gemini-2.0-flash',
-        prompt: [{text: "Transcribe the following audio:"}, { media: { url: audioDataUri } }],
-        config: {
-            responseModalities: ['TEXT'],
-        },
-    });
-
-    if (!transcription) {
-      throw new Error('Failed to transcribe audio.');
-    }
-
+  // Step 2: Use Ollama SEA-LION for translation with Gemini fallback
+  try {
+    const { seaLionOllama } = await import('@/lib/ollama/sea-lion-client');
+    
+    const translation = await seaLionOllama.translateMessage(
+      transcription,
+      targetLanguage
+    );
+    
+    return {
+      transcription,
+      translation,
+      model: 'hybrid-sealion',
+    };
+  } catch (error) {
+    console.warn('Ollama SEA-LION translation failed for voice transcription, falling back to Gemini:', error);
+    
+    // Fallback to Gemini for translation
     const { output: translationOutput } = await ai.generate({
-      prompt: `Translate the following text into ${targetLanguage}. Preserve critical details like names, dates, and times.\n\nText: "${transcription}"`,
+      prompt: `Translate the following transcribed text into ${targetLanguage}. This is from a voice message in a parent-teacher communication context. Preserve critical details like names, dates, times, and any educational terminology.\n\nText: "${transcription}"`,
       output: {
         format: 'json',
         schema: z.object({ translation: z.string() })
@@ -62,12 +76,13 @@ const transcribeAndTranslateFlow = ai.defineFlow(
     });
     
     if (!translationOutput) {
-        throw new Error('Failed to generate translation.');
+      throw new Error('Failed to generate translation with both Sea-Lion and Gemini.');
     }
 
     return {
-        transcription,
-        translation: translationOutput.translation,
+      transcription,
+      translation: translationOutput.translation,
+      model: 'gemini-only',
     };
   }
-);
+}

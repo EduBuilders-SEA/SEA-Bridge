@@ -2,6 +2,7 @@
 
 import { AddContactForm } from '@/components/chat/add-contact-form';
 import Logo from '@/components/logo';
+import { useLanguageStore } from '@/components/store/language-store';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Tooltip,
   TooltipContent,
@@ -33,9 +42,11 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { type ContactWithJoins, useContacts } from '@/hooks/use-contacts';
 import { useCurrentProfile } from '@/hooks/use-profile';
+import { languages } from '@/lib/languages';
 import { type ContactCreate } from '@/lib/schemas/contact';
 import {
   ArrowLeft,
+  Languages,
   PencilLine,
   PlusCircle,
   Search,
@@ -53,6 +64,8 @@ export default function TeacherContactsPage() {
     deleteContactAsync,
   } = useContacts();
   const [searchTerm, setSearchTerm] = useState('');
+  const { selectedLanguage: language, setSelectedLanguage: setLanguage } =
+    useLanguageStore();
   const [editOpen, setEditOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -136,16 +149,39 @@ export default function TeacherContactsPage() {
       </header>
       <main className='flex-1 overflow-y-auto p-4 md:p-6'>
         <div className='max-w-4xl mx-auto'>
-          <div className='flex justify-between items-center mb-8 gap-4'>
-            <div className='relative flex-1'>
-              <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground' />
-              <Input
-                type='text'
-                placeholder="Search by parent's name..."
-                className='pl-10 w-full'
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4'>
+            <div className='flex flex-col sm:flex-row gap-4 flex-1'>
+              <div className='relative flex-1'>
+                <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground' />
+                <Input
+                  type='text'
+                  placeholder="Search by parent's name..."
+                  className='pl-10 w-full'
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className='grid gap-1.5 sm:min-w-48'>
+                <Label
+                  htmlFor='language-select'
+                  className='flex items-center gap-2 text-sm text-muted-foreground'
+                >
+                  <Languages className='w-4 h-4' />
+                  My Language
+                </Label>
+                <Select value={language} onValueChange={setLanguage}>
+                  <SelectTrigger id='language-select' className='w-full'>
+                    <SelectValue placeholder='Select language' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {languages.map((lang) => (
+                      <SelectItem key={lang.value} value={lang.value}>
+                        {lang.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <AddContactForm role='parent' onAddContact={handleAddContact}>
               <Button>

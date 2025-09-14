@@ -22,7 +22,7 @@ SEA Bridge is a multilingual parent-teacher communication platform designed for 
 - **State Management**: TanStack Query (React Query) for server state, minimal client state
 - **Authentication**: Firebase Auth for phone verification + reCAPTCHA, integrated as third-party provider
 - **Auth Protection**: Next.js middleware for route protection (no useEffect auth checks)
-- **AI Integration**: Hybrid model using Google Genkit (Gemini) and **AWS Bedrock (Sea Lion)**
+- **AI Integration**: Hybrid model using Google Genkit (Gemini) and **Ollama SEA-LION**
 - **Database & Backend**: Supabase (PostgreSQL, Realtime, Storage) with Firebase Auth integration
 - **Phone Integration**: React Phone Number Input with international support
 
@@ -60,16 +60,17 @@ The application uses a simplified 4-table structure:
 
 The project uses a hybrid AI architecture to leverage the best models for specific tasks.
 
-#### Core SMS AI (AWS Bedrock + Sea Lion)
+#### Core Translation AI (Ollama SEA-LION + Gemini Fallback)
 
-For the critical SMS notification feature, we use AWS Bedrock for its specialized models and direct integration with our notification pipeline.
+For real-time message translation, we use Ollama SEA-LION for blazing-fast inference with Gemini as fallback.
 
-- **Provider**: AWS Bedrock
-- **Model**: Sea Lion (for context-aware SEA language translation and smart chunking)
-- **Implementation**: Direct AWS SDK integration within server-side logic (e.g., BullMQ workers). See `src/lib/aws/bedrock-client.ts`.
+- **Provider**: Ollama SEA-LION v3.5-8B-R
+- **Model**: Sea Lion (for context-aware SEA language translation)
+- **Implementation**: Direct Ollama integration for ~150ms inference. See `src/lib/ollama/sea-lion-client.ts`.
 - **Key Features**:
-    - `translateForSMS`: Translates messages for SMS delivery.
-    - `smartChunkForSMS`: Splits messages into context-aware chunks for SMS.
+    - `translateMessage`: Real-time message translation with smart language detection
+    - `simplifyMessage`: Content simplification for better readability
+    - `smartChunkForSMS`: Splits messages into context-aware chunks for SMS
 
 #### General In-App AI (Google Genkit + Gemini)
 
@@ -158,11 +159,12 @@ Components follow atomic design principles:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key  
 - `GOOGLE_GENAI_API_KEY` - Google AI API key for Genkit
 
-**AWS Services (Bedrock & SNS)**
+**AI Services**
+- `OLLAMA_ENDPOINT` - Ollama API endpoint for SEA-LION inference (defaults to http://localhost:11434)
+
+**AWS Services (SNS & S3)**
 - `AWS_ACCESS_KEY_ID` - AWS Access Key for SDK authentication
 - `AWS_SECRET_ACCESS_KEY` - AWS Secret Key for SDK authentication
-- `AWS_BEDROCK_REGION` - AWS region for Bedrock service
-- `SEA_LION_MODEL_ID` - The model identifier for Sea Lion on Bedrock
 - `AWS_SNS_REGION` - AWS region for SNS service
 - `SNS_DELIVERY_STATUS_ROLE` - IAM role ARN for SNS delivery status logging
 - `SNS_USAGE_REPORT_BUCKET` - S3 bucket for SNS usage reports
