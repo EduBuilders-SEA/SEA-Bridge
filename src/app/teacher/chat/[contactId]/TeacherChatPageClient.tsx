@@ -74,6 +74,11 @@ export default function TeacherChatPageClient({
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [_attendance, setAttendance] = useState<Attendance | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+  // Smart scroll state
+  const [hasInitiallyScrolled, setHasInitiallyScrolled] = useState(false);
+  const [isScrollAreaReady, setIsScrollAreaReady] = useState(false);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
   const router = useRouter();
 
   // Find the contact from the real contacts data
@@ -91,7 +96,47 @@ export default function TeacherChatPageClient({
     }
   }, [user, profile, authLoading, profileLoading, router]);
 
-  // ❌ Removed auto-scroll - let users control their own scrolling!
+  // ✅ Track when ScrollArea is mounted and ready
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      setIsScrollAreaReady(true);
+    }
+  }, []);
+
+  // ✅ Smart initial scroll - only scroll to bottom on first load
+  useEffect(() => {
+    if (
+      isScrollAreaReady &&
+      !hasInitiallyScrolled &&
+      !messagesLoading &&
+      initialMessages &&
+      initialMessages.length > 0 &&
+      scrollAreaRef.current
+    ) {
+      // Small delay to ensure DOM is fully rendered
+      const timeoutId = setTimeout(() => {
+        if (scrollAreaRef.current) {
+          scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+          setHasInitiallyScrolled(true);
+        }
+      }, 100);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isScrollAreaReady, hasInitiallyScrolled, messagesLoading, initialMessages]);
+
+  // ✅ Show new messages indicator when user is scrolled up
+  useEffect(() => {
+    if (realtimeMessages.length > 0 && scrollAreaRef.current && hasInitiallyScrolled) {
+      const isNearBottom =
+        scrollAreaRef.current.scrollHeight - scrollAreaRef.current.scrollTop
+        < scrollAreaRef.current.clientHeight + 100;
+
+      if (!isNearBottom) {
+        setHasNewMessages(true);
+      }
+    }
+  }, [realtimeMessages, hasInitiallyScrolled]);
 
   // ✅ Include messagesLoading in loading check
   if (authLoading || profileLoading || contactsLoading || messagesLoading) {
@@ -259,7 +304,7 @@ export default function TeacherChatPageClient({
         </div>
         <TabsContent
           value='chat'
-          className='flex-1 flex flex-col overflow-hidden'
+          className='flex-1 flex flex-col overflow-hidden relative'
         >
           <div
             className='flex-1 space-y-4 overflow-y-auto p-4 md:p-6'
@@ -277,6 +322,22 @@ export default function TeacherChatPageClient({
               />
             ))}
           </div>
+          {hasNewMessages && (
+            <button
+              onClick={() => {
+                if (scrollAreaRef.current) {
+                  scrollAreaRef.current.scrollTo({
+                    top: scrollAreaRef.current.scrollHeight,
+                    behavior: 'smooth',
+                  });
+                  setHasNewMessages(false);
+                }
+              }}
+              className='absolute bottom-20 right-4 bg-primary text-primary-foreground px-3 py-2 rounded-full shadow-lg hover:bg-primary/90 transition-colors'
+            >
+              ↓ New Messages
+            </button>
+          )}
           <div className='p-4 md:p-6 border-t bg-background'>
             <MessageInput
               contactId={contactId}

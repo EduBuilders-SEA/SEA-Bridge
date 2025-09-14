@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useOnboardingMutations } from './use-onboarding-mutations';
 import { useRecaptcha } from './use-recaptcha';
 import { createClient } from '@/lib/supabase/client';
+import { useTourStore } from '@/components/tour/tour-store';
 
 type OnboardingStep = 'phone' | 'otp';
 
@@ -20,6 +21,7 @@ export function useOnboardingFlow(role: string) {
   const mutations = useOnboardingMutations();
   const { initializeRecaptcha, clearRecaptcha } = useRecaptcha();
   const supabase = createClient();
+  const { startTour, hasCompletedTour } = useTourStore();
 
   const [step, setStep] = useState<OnboardingStep>('phone');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -178,6 +180,15 @@ export function useOnboardingFlow(role: string) {
             phone: formData.phoneNumber,
             name: null,
           });
+
+          // Trigger tour for new users after successful profile creation
+          if (!hasCompletedTour) {
+            // Small delay to allow page transition to complete
+            setTimeout(() => {
+              startTour();
+            }, 2000);
+          }
+
           router.push(`/${role}`);
         }
       } catch (_error) {
