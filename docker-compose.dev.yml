@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Next.js SEA-Bridge App (Local Development)
+  sea-bridge-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - '9002:9002'
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - OLLAMA_ENDPOINT=http://ollama:11434
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - ollama
+    networks:
+      - sea-bridge-network
+    restart: unless-stopped
+
+  # Ollama SEA-LION Service (Local)
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - '11434:11434'
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - sea-bridge-network
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+
+networks:
+  sea-bridge-network:
+    driver: bridge

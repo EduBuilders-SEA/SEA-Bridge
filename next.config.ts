@@ -1,28 +1,17 @@
+// Next.js Configuration for Docker
+// Enable standalone output for smaller Docker images
 
-import type {NextConfig} from 'next';
-
-const nextConfig: NextConfig = {
-  /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'standalone',
+  serverExternalPackages: ['@aws-sdk/client-s3', '@aws-sdk/client-sns'],
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
-      },
-    ],
-    // Allow blobs for local file previews
-    dangerouslyAllowSVG: true,
-    contentDispositionType: 'attachment',
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    domains: ['placehold.co'],
+    unoptimized: true, // For static exports if needed
+  },
+  env: {
+    CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
