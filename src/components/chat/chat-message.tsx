@@ -53,6 +53,7 @@ type ChatMessageProps = {
 
 import React from 'react';
 import { DocumentTranslator } from './document-translator';
+import { AWSDocumentTranslator } from './aws-document-translator';
 
 interface MessageTranslationStatusProps {
   isTranslating: boolean;
@@ -321,13 +322,12 @@ const MessageContent = ({
               </div>
             </div>
             {message.file_url && (
-              <DocumentTranslator
+              <AWSDocumentTranslator
                 fileUrl={message.file_url}
                 fileName={message.content}
                 contactId={message.contact_link_id}
                 messageId={message.id}
                 variants={message.variants ?? undefined}
-                senderId={message.sender_id}
                 isOwnMessage={message.sender_id === currentUserId}
               />
             )}
@@ -400,14 +400,13 @@ const MessageContent = ({
               </p>
             </div>
           </div>
-          {/* Always show DocumentTranslator for file messages, even without file_url */}
-          <DocumentTranslator
+          {/* Always show AWSDocumentTranslator for file messages, even without file_url */}
+          <AWSDocumentTranslator
             fileUrl={message.file_url ?? message.content} // Fallback to content if no URL
             fileName={message.content}
             contactId={message.contact_link_id}
             messageId={message.id}
             variants={message.variants ?? undefined}
-            senderId={message.sender_id}
             isOwnMessage={message.sender_id === currentUserId}
           />
         </div>
