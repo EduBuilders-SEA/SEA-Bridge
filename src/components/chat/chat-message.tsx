@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useMessageDelete } from '@/hooks/use-message-delete';
 import { useMessageEdit } from '@/hooks/use-message-edit';
-import type { ChatMessage } from '@/lib/schemas';
+import type { ChatMessage as ChatMessageType } from '@/lib/schemas';
 import type { SupabaseChannel } from '@/lib/supabase/types';
 import { cn, formatMessageTime } from '@/lib/utils';
 import {
@@ -41,7 +41,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Slider } from '../ui/slider';
 
 type ChatMessageProps = {
-  message: ChatMessage;
+  message: ChatMessageType;
   currentUserId: string;
   contactId: string;
   isTranslating?: boolean;
@@ -253,11 +253,18 @@ const MessageContent = ({
   message,
   isSentByCurrentUser,
   isTranslating = false,
+  currentUserId,
 }: {
-  message: ChatMessage;
+  message: ChatMessageType;
   isSentByCurrentUser: boolean;
   isTranslating?: boolean;
+  currentUserId: string;
 }) => {
+  // All hooks must be at the top before any conditional returns
+  const [displayMode, setDisplayMode] = useState<
+    'translated' | 'original' | 'both'
+  >('translated');
+
   if (message.message_type === 'image') {
     const isImage =
       message.file_url &&
@@ -317,11 +324,93 @@ const MessageContent = ({
               <DocumentTranslator
                 fileUrl={message.file_url}
                 fileName={message.content}
-                sourceLanguage={message.variants?.originalLanguage}
+                contactId={message.contact_link_id}
+                messageId={message.id}
+                variants={message.variants ?? undefined}
+                senderId={message.sender_id}
+                isOwnMessage={message.sender_id === currentUserId}
               />
             )}
           </div>
         )}
+        {(message.variants?.isSummarizing ?? message.variants?.summary) && (
+          <div className='mt-3 pt-3 border-t border-border/50'>
+            <p
+              className={cn(
+                'text-xs font-bold mb-1 font-headline',
+                'text-primary'
+              )}
+            >
+              Summary
+            </p>
+            {message.variants?.isSummarizing && !message.variants?.summary && (
+              <div className='flex items-center gap-2 text-card-foreground/90'>
+                <Loader2 className='w-4 h-4 animate-spin' />
+                <span className='text-sm'>Summarizing...</span>
+              </div>
+            )}
+            {message.variants?.summary && (
+              <p
+                className={cn(
+                  'font-body text-sm whitespace-pre-wrap',
+                  'text-card-foreground/90'
+                )}
+              >
+                {message.variants.summary}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Handle file message type (documents)
+  if (message.message_type === 'file') {
+    return (
+      <div>
+        <div
+          className={cn(
+            'p-3 rounded-md',
+            isSentByCurrentUser ? 'bg-primary-foreground/10' : 'bg-muted'
+          )}
+        >
+          <div className='flex items-center gap-3 mb-3'>
+            <FileText className='w-6 h-6 text-primary flex-shrink-0' />
+            <div className='flex-1 overflow-hidden'>
+              <p
+                className={cn(
+                  'font-medium font-body truncate',
+                  isSentByCurrentUser
+                    ? 'text-primary-foreground'
+                    : 'text-card-foreground'
+                )}
+              >
+                {message.content}
+              </p>
+              <p
+                className={cn(
+                  'text-xs',
+                  isSentByCurrentUser
+                    ? 'text-primary-foreground/80'
+                    : 'text-muted-foreground'
+                )}
+              >
+                Click to download or translate
+              </p>
+            </div>
+          </div>
+          {/* Always show DocumentTranslator for file messages, even without file_url */}
+          <DocumentTranslator
+            fileUrl={message.file_url ?? message.content} // Fallback to content if no URL
+            fileName={message.content}
+            contactId={message.contact_link_id}
+            messageId={message.id}
+            variants={message.variants ?? undefined}
+            senderId={message.sender_id}
+            isOwnMessage={message.sender_id === currentUserId}
+          />
+        </div>
         {(message.variants?.isSummarizing ?? message.variants?.summary) && (
           <div className='mt-3 pt-3 border-t border-border/50'>
             <p
@@ -438,9 +527,6 @@ const MessageContent = ({
       </div>
     );
   }
-  const [displayMode, setDisplayMode] = useState<
-    'translated' | 'original' | 'both'
-  >('translated');
 
   const hasTranslation = !!message.variants?.translatedContent;
   const content =
@@ -554,7 +640,7 @@ const MessageActions = ({
   isEditing,
   isDeleting,
 }: {
-  message: ChatMessage;
+  message: ChatMessageType;
   currentUserId: string;
   onEdit: () => void;
   onDelete: () => void;
@@ -608,7 +694,7 @@ const MessageActions = ({
   );
 };
 
-export default function ChatMessageComponent({
+export default function ChatMessage({
   message,
   currentUserId,
   contactId,
@@ -729,6 +815,7 @@ export default function ChatMessageComponent({
                     message={message}
                     isSentByCurrentUser={isSentByCurrentUser}
                     isTranslating={isTranslating}
+                    currentUserId={currentUserId}
                   />
                 </div>
 

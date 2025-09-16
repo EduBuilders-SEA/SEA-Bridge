@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useMessagePersistence } from '@/hooks/use-message-persistence';
+import { useFileUpload } from '@/hooks/use-file-upload';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/schemas';
@@ -45,6 +46,7 @@ export default function MessageInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { persistMessage } = useMessagePersistence();
+  const { uploadFileAsync, isUploading } = useFileUpload();
 
   const handleSend = async () => {
     if (text.trim()) {
@@ -105,7 +107,7 @@ export default function MessageInput({
             id: sent?.id,
             sent_at: sent?.sent_at,
             content: 'Voice note',
-            message_type: 'audio',
+            message_type: 'voice',
             contact_link_id: contactId,
             file_url: audioDataUri,
           });
@@ -144,19 +146,34 @@ export default function MessageInput({
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && onSendFile) {
-      const sent = await onSendFile(file);
+    if (!file) return;
 
+    try {
+      // Upload file to Supabase Storage
+      const uploadResult = await uploadFileAsync(file);
+      
+      // Send file message if onSendFile is provided
+      const sent = onSendFile ? await onSendFile(file) : null;
+
+      // Persist message with correct type 'file' 
       persistMessage({
         id: sent?.id,
         sent_at: sent?.sent_at,
         content: `📎 ${file.name} (${(file.size / 1024).toFixed(1)}KB)`,
-        message_type: 'document',
+        message_type: 'file', // Changed from 'document' to 'file'
         contact_link_id: contactId,
-        file_url: URL.createObjectURL(file),
+        file_url: uploadResult.signedUrl ?? uploadResult.path,
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Upload Failed',
+        description: 'Failed to upload file. Please try again.',
       });
     }
 
+    // Clear file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -194,7 +211,7 @@ export default function MessageInput({
               size='icon'
               className='text-muted-foreground hover:text-primary shrink-0'
               onClick={() => fileInputRef.current?.click()}
-              disabled={!onSendFile}
+              disabled={!onSendFile || isUploading}
             >
               <Paperclip className='w-5 h-5' />
               <span className='sr-only'>Attach file</span>

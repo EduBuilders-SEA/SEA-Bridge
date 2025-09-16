@@ -5,7 +5,7 @@ export const MessageSchema = z.object({
   id: z.string().uuid(),
   content: z.string(),
   message_type: z
-    .enum(['text', 'voice', 'image', 'audio', 'document'])
+    .enum(['text', 'voice', 'image', 'file'])
     .default('text'),
   contact_link_id: z.string().uuid(),
   sender_id: z.string(),
@@ -69,7 +69,7 @@ export const SendMessageSchema = z.object({
   contact_link_id: z.string().uuid(),
   content: z.string().min(1),
   message_type: z
-    .enum(['text', 'voice', 'image', 'audio', 'document'])
+    .enum(['text', 'voice', 'image', 'file'])
     .default('text'),
   variants: MessageSchema.shape.variants,
   file_url: z.string().url().nullable().optional(),

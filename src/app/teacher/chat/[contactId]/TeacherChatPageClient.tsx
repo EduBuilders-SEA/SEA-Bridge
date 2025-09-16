@@ -17,11 +17,11 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/use-auth';
 import { useContacts } from '@/hooks/use-contacts';
-import { useFastAutoTranslation } from '@/hooks/use-fast-auto-translation';
 import { useMessageQuery } from '@/hooks/use-message-query';
 import { useCurrentProfile } from '@/hooks/use-profile';
 import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
 import { useToast } from '@/hooks/use-toast';
+import { useFastAutoTranslation } from '@/hooks/use-translation';
 import type { Attendance } from '@/lib/schemas';
 import { notFound, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -98,39 +98,83 @@ export default function TeacherChatPageClient({
 
   // ✅ Track when ScrollArea is mounted and ready
   useEffect(() => {
+    console.log('Checking scrollAreaRef:', !!scrollAreaRef.current);
     if (scrollAreaRef.current) {
+      console.log('Setting isScrollAreaReady to true');
       setIsScrollAreaReady(true);
     }
-  }, []);
+  }, [translatedMessages]); // Re-run when messages change
 
-  // ✅ Smart initial scroll - only scroll to bottom on first load
+  // ✅ Simple and reliable initial scroll
   useEffect(() => {
+    console.log('Scroll effect triggered:', {
+      isScrollAreaReady,
+      hasInitiallyScrolled,
+      messagesLoading,
+      translatedMessagesLength: translatedMessages?.length,
+      hasScrollAreaRef: !!scrollAreaRef.current,
+    });
+
     if (
       isScrollAreaReady &&
       !hasInitiallyScrolled &&
       !messagesLoading &&
-      initialMessages &&
-      initialMessages.length > 0 &&
+      translatedMessages &&
+      translatedMessages.length > 0 &&
       scrollAreaRef.current
     ) {
-      // Small delay to ensure DOM is fully rendered
-      const timeoutId = setTimeout(() => {
-        if (scrollAreaRef.current) {
+      console.log('All conditions met, attempting scroll...');
+      const scrollToBottom = () => {
+        if (scrollAreaRef.current && !hasInitiallyScrolled) {
+          console.log('Attempting to scroll to bottom:', {
+            scrollHeight: scrollAreaRef.current.scrollHeight,
+            clientHeight: scrollAreaRef.current.clientHeight,
+            scrollTop: scrollAreaRef.current.scrollTop,
+          });
+          // Try both methods to ensure scrolling works
           scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+          scrollAreaRef.current.scrollTo({
+            top: scrollAreaRef.current.scrollHeight,
+            behavior: 'instant',
+          });
           setHasInitiallyScrolled(true);
         }
-      }, 100);
+      };
 
-      return () => clearTimeout(timeoutId);
+      // Multiple attempts to ensure scrolling works
+      requestAnimationFrame(() => {
+        scrollToBottom();
+        setTimeout(scrollToBottom, 100);
+        setTimeout(scrollToBottom, 300);
+        setTimeout(scrollToBottom, 500);
+        setTimeout(scrollToBottom, 1000);
+      });
+    } else {
+      console.log('Scroll conditions not met:', {
+        isScrollAreaReady,
+        hasInitiallyScrolled,
+        messagesLoading,
+        translatedMessagesLength: translatedMessages?.length,
+        hasScrollAreaRef: !!scrollAreaRef.current,
+      });
     }
-  }, [isScrollAreaReady, hasInitiallyScrolled, messagesLoading, initialMessages]);
+  }, [
+    isScrollAreaReady,
+    hasInitiallyScrolled,
+    messagesLoading,
+    translatedMessages,
+  ]);
 
   // ✅ Show new messages indicator when user is scrolled up
   useEffect(() => {
-    if (realtimeMessages.length > 0 && scrollAreaRef.current && hasInitiallyScrolled) {
+    if (
+      realtimeMessages.length > 0 &&
+      scrollAreaRef.current &&
+      hasInitiallyScrolled
+    ) {
       const isNearBottom =
-        scrollAreaRef.current.scrollHeight - scrollAreaRef.current.scrollTop
-        < scrollAreaRef.current.clientHeight + 100;
+        scrollAreaRef.current.scrollHeight - scrollAreaRef.current.scrollTop <
+        scrollAreaRef.current.clientHeight + 100;
 
       if (!isNearBottom) {
         setHasNewMessages(true);

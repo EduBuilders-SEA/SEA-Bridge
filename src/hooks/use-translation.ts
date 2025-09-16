@@ -76,7 +76,7 @@ export function useFastAutoTranslation(
 
       const translationResult: TranslationResult = {
         id: message.id,
-        translation: result.translation,
+        translation: result.translatedContent,
         model: result.model,
       };
 
@@ -92,7 +92,7 @@ export function useFastAutoTranslation(
                 ...msg,
                 variants: {
                   ...msg.variants,
-                  translatedContent: result.translation,
+                  translatedContent: result.translatedContent,
                   translatedLanguage: userLanguage,
                   translationModel: result.model,
                   translationTimestamp: new Date().toISOString(),

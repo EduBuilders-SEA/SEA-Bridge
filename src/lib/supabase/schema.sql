@@ -44,11 +44,12 @@ create table messages (
   contact_link_id uuid not null references contacts(id),
   sender_id text not null references profiles(id),
   content text not null,
-  message_type text default 'text'::text check (message_type = any (array['text'::text, 'voice'::text, 'image'::text])),
+  message_type text default 'text'::text check (message_type = any (array['text'::text, 'voice'::text, 'image'::text, 'file'::text])),
   file_url text,
   variants jsonb default '{}'::jsonb,
   sent_at timestamp with time zone default now()
 );
+
 
 -- Create attendance table - teachers track student attendance
 create table attendance (
@@ -379,3 +380,44 @@ end;
 $$;
 
 grant execute on function public.delete_contact(uuid) to authenticated;
+
+
+-- STORAGE POLICIES
+
+-- DELETE policy for chat-files bucket
+-- ((bucket_id = 'chat-files'::text) AND (owner_id = (auth.jwt() ->> 'sub'::text)))
+create policy "Users can delete their own files in chat-files bucket"
+  on storage.objects for delete
+  using (
+    (bucket_id = 'chat-files'::text) AND (owner_id = (auth.jwt() ->> 'sub'::text))
+  );
+
+-- VIEW / DOWNLOAD policy for chat-files bucket
+-- ((bucket_id = 'chat-files'::text) AND ((owner_id = (auth.jwt() ->> 'sub'::text)) OR (EXISTS ( SELECT 1
+--    FROM (contacts c
+--      JOIN messages m ON ((m.contact_link_id = c.id)))
+--   WHERE ((m.file_url ~~ (('%'::text || objects.name) || '%'::text)) AND ((c.teacher_id = (auth.jwt() ->> 'sub'::text)) OR (c.parent_id = (auth.jwt() ->> 'sub'::text))))))))
+create policy "Users can view/download their own files and files in their conversations in chat-files bucket"
+  on storage.objects for select
+  using (
+    (bucket_id = 'chat-files'::text) AND ((owner_id = (auth.jwt() ->> 'sub'::text)) OR (EXISTS ( SELECT 1
+       FROM (contacts c
+         JOIN messages m ON ((m.contact_link_id = c.id)))
+      WHERE ((m.file_url ~~ (('%'::text || objects.name) || '%'::text)) AND ((c.teacher_id = (auth.jwt() ->> 'sub'::text)) OR (c.parent_id = (auth.jwt() ->> 'sub'::text)))))))
+  );
+
+-- UPDATE policy for chat-files bucket
+-- ((bucket_id = 'chat-files'::text) AND (owner_id = (auth.jwt() ->> 'sub'::text)))
+create policy "Users can update their own files in chat-files bucket"
+  on storage.objects for update
+  using (
+    (bucket_id = 'chat-files'::text) AND (owner_id = (auth.jwt() ->> 'sub'::text))
+  );
+
+-- UPLOAD policy for chat-files bucket
+-- ((bucket_id = 'chat-files'::text) AND ((auth.jwt() ->> 'sub'::text) IS NOT NULL))
+create policy "Users can upload files to chat-files bucket"
+  on storage.objects for insert
+  with check (
+    (bucket_id = 'chat-files'::text) AND ((auth.jwt() ->> 'sub'::text) IS NOT NULL)
+  );
