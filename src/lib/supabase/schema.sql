@@ -44,11 +44,12 @@ create table messages (
   contact_link_id uuid not null references contacts(id),
   sender_id text not null references profiles(id),
   content text not null,
-  message_type text default 'text'::text check (message_type = any (array['text'::text, 'voice'::text, 'image'::text])),
+  message_type text default 'text'::text check (message_type = any (array['text'::text, 'voice'::text, 'image'::text, 'file'::text])),
   file_url text,
   variants jsonb default '{}'::jsonb,
   sent_at timestamp with time zone default now()
 );
+
 
 -- Create attendance table - teachers track student attendance
 create table attendance (
@@ -379,3 +380,174 @@ end;
 $$;
 
 grant execute on function public.delete_contact(uuid) to authenticated;
+
+
+-- STORAGE POLICIES
+
+-- DELETE policy for chat-files bucket
+-- ((bucket_id = 'chat-files'::text) AND (owner_id = (auth.jwt() ->> 'sub'::text)))
+create policy "Users can delete their own files in chat-files bucket"
+  on storage.objects for delete
+  using (
+    (bucket_id = 'chat-files'::text) AND (owner_id = (auth.jwt() ->> 'sub'::text))
+  );
+
+-- VIEW / DOWNLOAD policy for chat-files bucket
+-- ((bucket_id = 'chat-files'::text) AND ((owner_id = (auth.jwt() ->> 'sub'::text)) OR (EXISTS ( SELECT 1
+--    FROM (contacts c
+--      JOIN messages m ON ((m.contact_link_id = c.id)))
+--   WHERE ((m.file_url ~~ (('%'::text || objects.name) || '%'::text)) AND ((c.teacher_id = (auth.jwt() ->> 'sub'::text)) OR (c.parent_id = (auth.jwt() ->> 'sub'::text))))))))
+create policy "Users can view/download their own files and files in their conversations in chat-files bucket"
+  on storage.objects for select
+  using (
+    (bucket_id = 'chat-files'::text) AND ((owner_id = (auth.jwt() ->> 'sub'::text)) OR (EXISTS ( SELECT 1
+       FROM (contacts c
+         JOIN messages m ON ((m.contact_link_id = c.id)))
+      WHERE ((m.file_url ~~ (('%'::text || objects.name) || '%'::text)) AND ((c.teacher_id = (auth.jwt() ->> 'sub'::text)) OR (c.parent_id = (auth.jwt() ->> 'sub'::text)))))))
+  );
+
+-- UPDATE policy for chat-files bucket
+-- ((bucket_id = 'chat-files'::text) AND (owner_id = (auth.jwt() ->> 'sub'::text)))
+create policy "Users can update their own files in chat-files bucket"
+  on storage.objects for update
+  using (
+    (bucket_id = 'chat-files'::text) AND (owner_id = (auth.jwt() ->> 'sub'::text))
+  );
+
+-- UPLOAD policy for chat-files bucket
+-- ((bucket_id = 'chat-files'::text) AND ((auth.jwt() ->> 'sub'::text) IS NOT NULL))
+create policy "Users can upload files to chat-files bucket"
+  on storage.objects for insert
+  with check (
+    (bucket_id = 'chat-files'::text) AND ((auth.jwt() ->> 'sub'::text) IS NOT NULL)
+  );
+
+
+-- Fix the translation_jobs table
+DROP TABLE IF EXISTS translation_jobs CASCADE;
+
+CREATE TABLE translation_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  contact_link_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE, -- Added proper FK
+  user_id TEXT NOT NULL, -- This should match auth.uid()::TEXT format
+  
+  -- AWS job details
+  aws_job_id TEXT NOT NULL UNIQUE,
+  job_name TEXT NOT NULL,
+  
+  -- Job configuration
+  target_language TEXT NOT NULL,
+  source_language TEXT DEFAULT 'auto',
+  original_filename TEXT NOT NULL,
+  
+  -- Status tracking
+  status TEXT NOT NULL DEFAULT 'SUBMITTED' 
+    CHECK (status IN ('SUBMITTED', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'STOPPED')),
+  progress_percent INTEGER DEFAULT 0 CHECK (progress_percent >= 0 AND progress_percent <= 100),
+  
+  -- Results
+  translated_filename TEXT,
+  download_url TEXT,
+  error_message TEXT,
+  
+  -- Timestamps
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  
+  -- Metadata
+  estimated_completion_time TEXT,
+  processing_time_ms INTEGER,
+  word_count INTEGER,
+  file_size_bytes INTEGER,
+  user_notified BOOLEAN DEFAULT FALSE
+);
+
+-- Add indexes for efficient queries
+CREATE INDEX IF NOT EXISTS idx_translation_jobs_message_id ON translation_jobs(message_id);
+CREATE INDEX IF NOT EXISTS idx_translation_jobs_user_id ON translation_jobs(user_id);
+CREATE INDEX IF NOT EXISTS idx_translation_jobs_status ON translation_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_translation_jobs_aws_job_id ON translation_jobs(aws_job_id);
+CREATE INDEX IF NOT EXISTS idx_translation_jobs_contact_link_id ON translation_jobs(contact_link_id);
+
+-- Add composite index for common queries
+CREATE INDEX IF NOT EXISTS idx_translation_jobs_user_status ON translation_jobs(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_translation_jobs_message_lang ON translation_jobs(message_id, target_language);
+
+-- Enable RLS
+ALTER TABLE translation_jobs ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view own translation jobs" ON translation_jobs;
+DROP POLICY IF EXISTS "Users can create translation jobs" ON translation_jobs;
+DROP POLICY IF EXISTS "Users can update own translation jobs" ON translation_jobs;
+DROP POLICY IF EXISTS "Users can delete own translation jobs" ON translation_jobs;
+
+-- -- Create consistent RLS policies using auth.jwt() ->> 'sub'
+-- CREATE POLICY "Users can view own translation jobs"
+--   ON translation_jobs FOR SELECT
+--   USING (user_id = (auth.jwt() ->> 'sub'));
+
+-- CREATE POLICY "Users can create translation jobs"
+--   ON translation_jobs FOR INSERT
+--   WITH CHECK (user_id = (auth.jwt() ->> 'sub'));
+
+-- CREATE POLICY "Users can update own translation jobs"
+--   ON translation_jobs FOR UPDATE
+--   USING (user_id = (auth.jwt() ->> 'sub'))
+--   WITH CHECK (user_id = (auth.jwt() ->> 'sub'));
+
+-- -- Allow users to delete their own translation jobs
+-- CREATE POLICY "Users can delete own translation jobs"
+--   ON translation_jobs FOR DELETE
+--   USING (user_id = (auth.jwt() ->> 'sub'));
+
+-- -- Add restrictive policy to ensure profile completeness for translation jobs
+-- CREATE POLICY "Require complete profile for translation jobs INSERT"
+--   ON translation_jobs
+--   AS RESTRICTIVE
+--   FOR INSERT
+--   TO authenticated
+--   WITH CHECK (public.profile_is_complete());
+
+-- CREATE POLICY "Require complete profile for translation jobs UPDATE"
+--   ON translation_jobs
+--   AS RESTRICTIVE
+--   FOR UPDATE
+--   TO authenticated
+--   USING (public.profile_is_complete())
+--   WITH CHECK (public.profile_is_complete());
+
+-- Add trigger to automatically update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_translation_jobs_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_translation_jobs_updated_at ON translation_jobs;
+CREATE TRIGGER trigger_translation_jobs_updated_at
+  BEFORE UPDATE ON translation_jobs
+  FOR EACH ROW
+  EXECUTE FUNCTION update_translation_jobs_updated_at();
+
+-- Add function to clean up old completed/failed jobs (optional)
+CREATE OR REPLACE FUNCTION cleanup_old_translation_jobs()
+RETURNS INTEGER AS $$
+DECLARE
+  deleted_count INTEGER;
+BEGIN
+  DELETE FROM translation_jobs 
+  WHERE status IN ('COMPLETED', 'FAILED', 'STOPPED')
+  AND updated_at < NOW() - INTERVAL '30 days';
+  
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION cleanup_old_translation_jobs() TO authenticated;

@@ -10,22 +10,22 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-const ChunkMessageForSmsInputSchema = z.object({
+const _ChunkMessageForSmsInputSchema = z.object({
   content: z.string().describe('The text content of the message to be split.'),
   language: z.string().optional().describe('The language of the message (optional, defaults to English).'),
 });
-export type ChunkMessageForSmsInput = z.infer<typeof ChunkMessageForSmsInputSchema>;
+export type ChunkMessageForSmsInput = z.infer<typeof _ChunkMessageForSmsInputSchema>;
 
-const ChunkMessageForSmsOutputSchema = z.object({
+const _ChunkMessageForSmsOutputSchema = z.object({
   chunks: z
     .array(z.string())
     .describe('An array of message chunks, where each chunk is 160 characters or less.'),
   model: z.enum(['sea-lion', 'gemini']).describe('The AI model used for chunking.'),
 });
-export type ChunkMessageForSmsOutput = z.infer<typeof ChunkMessageForSmsOutputSchema>;
+export type ChunkMessageForSmsOutput = z.infer<typeof _ChunkMessageForSmsOutputSchema>;
 
 export async function chunkMessageForSms(input: ChunkMessageForSmsInput): Promise<ChunkMessageForSmsOutput> {
-  const language = input.language || 'English';
+  const language = input.language ?? 'English';
   
   // Try Ollama SEA-LION first for better Southeast Asian language handling
   try {

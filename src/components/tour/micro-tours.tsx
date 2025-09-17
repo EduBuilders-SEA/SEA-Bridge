@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTourStore } from './tour-store';
-import { X, Lightbulb, Globe, UserPlus, MessageCircle } from 'lucide-react';
+import { X, Globe, UserPlus, MessageCircle } from 'lucide-react';
 
 interface MicroTourConfig {
   id: string;
@@ -26,7 +26,7 @@ const microTourConfigs: Record<string, MicroTourConfig> = {
     trigger: 'first-visit',
     title: 'Smart Translation',
     message: 'Messages will automatically translate to your selected language!',
-    icon: <Globe className="w-5 h-5 text-blue-500" />,
+    icon: <Globe className='w-5 h-5 text-blue-500' />,
     placement: 'bottom',
     showDelay: 2000,
   },
@@ -35,11 +35,13 @@ const microTourConfigs: Record<string, MicroTourConfig> = {
     trigger: 'empty-state',
     title: 'Add Your First Contact',
     message: 'Start connecting with teachers or parents by adding a contact.',
-    icon: <UserPlus className="w-5 h-5 text-green-500" />,
+    icon: <UserPlus className='w-5 h-5 text-green-500' />,
     action: {
       label: 'Add Contact',
       onClick: () => {
-        const addButton = document.querySelector('[data-tour="add-contact-button"]') as HTMLElement;
+        const addButton = document.querySelector(
+          '[data-tour="add-contact-button"]'
+        ) as HTMLElement;
         addButton?.click();
       },
     },
@@ -50,8 +52,9 @@ const microTourConfigs: Record<string, MicroTourConfig> = {
     id: 'first-message',
     trigger: 'manual',
     title: 'Start Chatting',
-    message: 'Type your message and it will be automatically translated for the recipient.',
-    icon: <MessageCircle className="w-5 h-5 text-purple-500" />,
+    message:
+      'Type your message and it will be automatically translated for the recipient.',
+    icon: <MessageCircle className='w-5 h-5 text-purple-500' />,
     placement: 'top',
   },
 };
@@ -62,7 +65,11 @@ interface MicroTourProps {
   children?: React.ReactNode;
 }
 
-export function MicroTour({ feature, targetSelector, children }: MicroTourProps) {
+export function MicroTour({
+  feature,
+  targetSelector,
+  children,
+}: MicroTourProps) {
   const { showMicroTour, hideMicroTour, hasCompletedTour } = useTourStore();
   const [isVisible, setIsVisible] = useState(false);
   const [position, setPosition] = useState<React.CSSProperties>({});
@@ -78,7 +85,7 @@ export function MicroTour({ feature, targetSelector, children }: MicroTourProps)
     if (shouldShow) {
       const timer = setTimeout(() => {
         setIsVisible(true);
-      }, config.showDelay || 0);
+      }, config.showDelay ?? 0);
 
       return () => clearTimeout(timer);
     } else {
@@ -105,29 +112,35 @@ export function MicroTour({ feature, targetSelector, children }: MicroTourProps)
       switch (config.placement) {
         case 'top':
           top = rect.top - tooltipHeight - margin;
-          left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+          left = rect.left + rect.width / 2 - tooltipWidth / 2;
           break;
         case 'bottom':
           top = rect.bottom + margin;
-          left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+          left = rect.left + rect.width / 2 - tooltipWidth / 2;
           break;
         case 'left':
-          top = rect.top + (rect.height / 2) - (tooltipHeight / 2);
+          top = rect.top + rect.height / 2 - tooltipHeight / 2;
           left = rect.left - tooltipWidth - margin;
           break;
         case 'right':
-          top = rect.top + (rect.height / 2) - (tooltipHeight / 2);
+          top = rect.top + rect.height / 2 - tooltipHeight / 2;
           left = rect.right + margin;
           break;
         default:
           top = rect.bottom + margin;
-          left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+          left = rect.left + rect.width / 2 - tooltipWidth / 2;
       }
 
       // Keep within viewport
       const padding = 16;
-      top = Math.max(padding, Math.min(top, window.innerHeight - tooltipHeight - padding));
-      left = Math.max(padding, Math.min(left, window.innerWidth - tooltipWidth - padding));
+      top = Math.max(
+        padding,
+        Math.min(top, window.innerHeight - tooltipHeight - padding)
+      );
+      left = Math.max(
+        padding,
+        Math.min(left, window.innerWidth - tooltipWidth - padding)
+      );
 
       setPosition({
         position: 'fixed',
@@ -167,45 +180,39 @@ export function MicroTour({ feature, targetSelector, children }: MicroTourProps)
 
       {/* Micro-tour tooltip */}
       <Card
-        className="w-70 shadow-lg border border-primary/20 animate-in fade-in-0 zoom-in-95 duration-200"
+        className='w-70 shadow-lg border border-primary/20 animate-in fade-in-0 zoom-in-95 duration-200'
         style={position}
       >
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
+        <CardContent className='p-4'>
+          <div className='flex items-start gap-3'>
             {/* Icon */}
-            <div className="flex-shrink-0 mt-0.5">
-              {config.icon}
-            </div>
+            <div className='flex-shrink-0 mt-0.5'>{config.icon}</div>
 
             {/* Content */}
-            <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-sm text-foreground mb-1">
+            <div className='flex-1 min-w-0'>
+              <h4 className='font-semibold text-sm text-foreground mb-1'>
                 {config.title}
               </h4>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <p className='text-sm text-muted-foreground leading-relaxed'>
                 {config.message}
               </p>
             </div>
 
             {/* Close button */}
             <Button
-              variant="ghost"
-              size="sm"
+              variant='ghost'
+              size='sm'
               onClick={handleClose}
-              className="h-6 w-6 p-0 flex-shrink-0"
+              className='h-6 w-6 p-0 flex-shrink-0'
             >
-              <X className="w-3 h-3" />
+              <X className='w-3 h-3' />
             </Button>
           </div>
 
           {/* Action button */}
           {config.action && (
-            <div className="mt-3 flex justify-end">
-              <Button
-                size="sm"
-                onClick={handleAction}
-                className="h-7 text-xs"
-              >
+            <div className='mt-3 flex justify-end'>
+              <Button size='sm' onClick={handleAction} className='h-7 text-xs'>
                 {config.action.label}
               </Button>
             </div>
@@ -256,7 +263,7 @@ export function useMicroTour() {
 export function LanguageMicroTour({ children }: { children: React.ReactNode }) {
   return (
     <MicroTour
-      feature="language-hint"
+      feature='language-hint'
       targetSelector='[data-tour="language-selector"]'
     >
       {children}
@@ -264,10 +271,14 @@ export function LanguageMicroTour({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function EmptyContactsMicroTour({ children }: { children: React.ReactNode }) {
+export function EmptyContactsMicroTour({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <MicroTour
-      feature="empty-contacts"
+      feature='empty-contacts'
       targetSelector='[data-tour="add-contact-button"]'
     >
       {children}
@@ -275,10 +286,14 @@ export function EmptyContactsMicroTour({ children }: { children: React.ReactNode
   );
 }
 
-export function FirstMessageMicroTour({ children }: { children: React.ReactNode }) {
+export function FirstMessageMicroTour({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <MicroTour
-      feature="first-message"
+      feature='first-message'
       targetSelector='[data-tour="message-input"]'
     >
       {children}
@@ -289,7 +304,7 @@ export function FirstMessageMicroTour({ children }: { children: React.ReactNode 
 // Smart wrapper that shows appropriate micro-tours based on context
 export function SmartMicroTours({
   children,
-  context
+  context,
 }: {
   children: React.ReactNode;
   context: 'dashboard' | 'chat' | 'settings';
@@ -303,7 +318,9 @@ export function SmartMicroTours({
     const timer = setTimeout(() => {
       if (context === 'dashboard') {
         // Check if user has no contacts
-        const contactElements = document.querySelectorAll('[data-contact-item]');
+        const contactElements = document.querySelectorAll(
+          '[data-contact-item]'
+        );
         if (contactElements.length === 0) {
           showMicroTourFor('empty-contacts');
         }
@@ -316,19 +333,13 @@ export function SmartMicroTours({
   return (
     <>
       {context === 'dashboard' && (
-        <EmptyContactsMicroTour>
-          {children}
-        </EmptyContactsMicroTour>
+        <EmptyContactsMicroTour>{children}</EmptyContactsMicroTour>
       )}
       {context === 'chat' && (
-        <FirstMessageMicroTour>
-          {children}
-        </FirstMessageMicroTour>
+        <FirstMessageMicroTour>{children}</FirstMessageMicroTour>
       )}
       {context === 'settings' && (
-        <LanguageMicroTour>
-          {children}
-        </LanguageMicroTour>
+        <LanguageMicroTour>{children}</LanguageMicroTour>
       )}
     </>
   );

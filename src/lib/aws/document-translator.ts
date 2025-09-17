@@ -107,7 +107,7 @@ export class SeaLionDocumentTranslator {
               chunks.push(sentenceChunk.trim())
               sentenceChunk = sentence
             } else {
-              sentenceChunk += ' ' + sentence
+              sentenceChunk += ` ${  sentence}`
             }
           }
           
@@ -118,7 +118,7 @@ export class SeaLionDocumentTranslator {
           currentChunk = paragraph
         }
       } else {
-        currentChunk += '\n\n' + paragraph
+        currentChunk += `\n\n${  paragraph}`
       }
     }
     

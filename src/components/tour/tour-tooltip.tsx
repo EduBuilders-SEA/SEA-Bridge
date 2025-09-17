@@ -1,8 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useTourStore, type TourStep } from './tour-store';
 import { ArrowLeft, ArrowRight, X, CheckCircle } from 'lucide-react';
@@ -51,18 +57,18 @@ export function TourTooltip({ targetElement, step }: TourTooltipProps) {
       switch (step.placement) {
         case 'top':
           top = rect.top - tooltipHeight - margin;
-          left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+          left = rect.left + rect.width / 2 - tooltipWidth / 2;
           break;
         case 'bottom':
           top = rect.bottom + margin;
-          left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+          left = rect.left + rect.width / 2 - tooltipWidth / 2;
           break;
         case 'left':
-          top = rect.top + (rect.height / 2) - (tooltipHeight / 2);
+          top = rect.top + rect.height / 2 - tooltipHeight / 2;
           left = rect.left - tooltipWidth - margin;
           break;
         case 'right':
-          top = rect.top + (rect.height / 2) - (tooltipHeight / 2);
+          top = rect.top + rect.height / 2 - tooltipHeight / 2;
           left = rect.right + margin;
           break;
         default:
@@ -73,8 +79,14 @@ export function TourTooltip({ targetElement, step }: TourTooltipProps) {
 
       // Ensure tooltip stays within viewport
       const padding = 16;
-      top = Math.max(padding, Math.min(top, window.innerHeight - tooltipHeight - padding));
-      left = Math.max(padding, Math.min(left, window.innerWidth - tooltipWidth - padding));
+      top = Math.max(
+        padding,
+        Math.min(top, window.innerHeight - tooltipHeight - padding)
+      );
+      left = Math.max(
+        padding,
+        Math.min(left, window.innerWidth - tooltipWidth - padding)
+      );
 
       setPosition({
         position: 'fixed',
@@ -102,80 +114,82 @@ export function TourTooltip({ targetElement, step }: TourTooltipProps) {
 
   return (
     <Card
-      className="w-[380px] shadow-2xl border-2 border-primary/20 animate-in fade-in-0 zoom-in-95 duration-300"
+      className='w-[380px] shadow-2xl border-2 border-primary/20 animate-in fade-in-0 zoom-in-95 duration-300'
       style={position}
     >
       {/* Header */}
-      <CardHeader className="text-center pb-4 relative">
+      <CardHeader className='text-center pb-4 relative'>
         {/* Skip button */}
         <Button
-          variant="ghost"
-          size="sm"
+          variant='ghost'
+          size='sm'
           onClick={skipTour}
-          className="absolute right-2 top-2 h-8 w-8 p-0 hover:bg-muted"
+          className='absolute right-2 top-2 h-8 w-8 p-0 hover:bg-muted'
         >
-          <X className="w-4 h-4" />
+          <X className='w-4 h-4' />
         </Button>
 
         {/* Step icon */}
-        <div className="flex justify-center mb-3">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-2xl">
+        <div className='flex justify-center mb-3'>
+          <div className='w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-2xl'>
             {step.icon}
           </div>
         </div>
 
-        <CardTitle className="text-xl font-headline text-foreground">
+        <CardTitle className='text-xl font-headline text-foreground'>
           {step.title}
         </CardTitle>
-        <CardDescription className="text-base text-muted-foreground">
+        <CardDescription className='text-base text-muted-foreground'>
           {step.description}
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className='space-y-6'>
         {/* Feature details */}
-        <div className="space-y-3">
+        <div className='space-y-3'>
           {step.details.map((detail, index) => (
-            <div key={index} className="flex items-start gap-3 text-sm">
-              <span className="text-primary mt-1 font-semibold">•</span>
-              <span className="text-foreground leading-relaxed">{detail}</span>
+            <div key={index} className='flex items-start gap-3 text-sm'>
+              <span className='text-primary mt-1 font-semibold'>•</span>
+              <span className='text-foreground leading-relaxed'>{detail}</span>
             </div>
           ))}
         </div>
 
         {/* Progress bar */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Progress</span>
-            <span className="text-muted-foreground">{Math.round(progress)}%</span>
+        <div className='space-y-2'>
+          <div className='flex justify-between text-sm'>
+            <span className='text-muted-foreground'>Progress</span>
+            <span className='text-muted-foreground'>
+              {Math.round(progress)}%
+            </span>
           </div>
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} className='h-2' />
         </div>
 
         {/* Action buttons */}
-        <div className="flex justify-between items-center pt-2">
-          <div className="flex gap-2">
+        <div className='flex justify-between items-center pt-2'>
+          <div className='flex gap-2'>
             {canGoBack() && (
-              <Button variant="outline" onClick={previousStep} size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
+              <Button variant='outline' onClick={previousStep} size='sm'>
+                <ArrowLeft className='w-4 h-4 mr-2' />
                 Back
               </Button>
             )}
           </div>
 
-          <div className="flex gap-2">
+          <div className='flex gap-2'>
             {isLastStep ? (
               <Button
                 onClick={completeTour}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                className='bg-emerald-500 hover:bg-emerald-600 text-white'
               >
-                <CheckCircle className="w-4 h-4 mr-2" />
+                <CheckCircle className='w-4 h-4 mr-2' />
                 Get Started!
               </Button>
             ) : (
-              <Button onClick={nextStep} className="min-w-[100px]">
+              <Button onClick={nextStep} className='min-w-[100px]'>
                 Next
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <ArrowRight className='w-4 h-4 ml-2' />
               </Button>
             )}
           </div>
@@ -183,8 +197,8 @@ export function TourTooltip({ targetElement, step }: TourTooltipProps) {
 
         {/* Interaction hint */}
         {step.allowInteraction && targetElement && (
-          <div className="text-center pt-2">
-            <p className="text-xs text-primary/80 font-medium">
+          <div className='text-center pt-2'>
+            <p className='text-xs text-primary/80 font-medium'>
               💡 You can interact with the highlighted element!
             </p>
           </div>
