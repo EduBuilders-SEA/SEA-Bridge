@@ -10,20 +10,20 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-const SimplifyMessageInputSchema = z.object({
+const _SimplifyMessageInputSchema = z.object({
   content: z.string().describe('The text content of the message to be simplified.'),
   language: z.string().optional().describe('The language of the message (optional, defaults to English).'),
 });
-export type SimplifyMessageInput = z.infer<typeof SimplifyMessageInputSchema>;
+export type SimplifyMessageInput = z.infer<typeof _SimplifyMessageInputSchema>;
 
-const SimplifyMessageOutputSchema = z.object({
+const _SimplifyMessageOutputSchema = z.object({
   simplifiedContent: z.string().describe('The simplified, plain-language version of the text.'),
   model: z.enum(['sea-lion', 'gemini']).describe('The AI model used for simplification.'),
 });
-export type SimplifyMessageOutput = z.infer<typeof SimplifyMessageOutputSchema>;
+export type SimplifyMessageOutput = z.infer<typeof _SimplifyMessageOutputSchema>;
 
 export async function simplifyMessage(input: SimplifyMessageInput): Promise<SimplifyMessageOutput> {
-  const language = input.language || 'English';
+  const language = input.language ?? 'English';
   
   // Try Ollama SEA-LION first (FAST!)
   try {

@@ -27,18 +27,45 @@ export function useFastAutoTranslation(
   const userLanguage = selectedLanguage || profile?.preferred_language || 'English';
 
   useEffect(() => {
-    // **IMMEDIATE RESPONSE**: Show messages instantly
-    setTranslatedMessages(messages);
+    // **PRESERVE EXISTING TRANSLATIONS**: Merge with current translated state
+    setTranslatedMessages(prevTranslated => {
+      // Create a map of existing translations to preserve them
+      const existingTranslations = new Map<string, ChatMessage>();
+      prevTranslated.forEach(msg => {
+        if (msg.variants?.translatedContent && msg.variants?.translatedLanguage === userLanguage) {
+          existingTranslations.set(msg.id, msg);
+        }
+      });
 
-    // Find messages needing translation
+      // Merge incoming messages with preserved translations
+      return messages.map(message => {
+        const existing = existingTranslations.get(message.id);
+        if (existing?.variants?.translatedContent) {
+          // **PRESERVE**: Keep existing translation, but update other fields (like content for edits)
+          return {
+            ...message, // Use updated message content (in case of edits)
+            variants: {
+              ...message.variants,
+              ...existing.variants, // Preserve translation data
+            }
+          };
+        }
+        return message;
+      });
+    });
+
+    // Find messages needing translation (exclude those already translated in current language)
     const messagesToTranslate = messages
       .filter((message) => {
         const key = `${message.id}-${userLanguage}`;
+        const alreadyTranslated = message.variants?.translatedContent && 
+                                 message.variants?.translatedLanguage === userLanguage;
+        
         return (
           !processedRef.current.has(key) &&
+          !alreadyTranslated && // **KEY FIX**: Don't re-translate existing translations
           message.sender_id !== currentUserId &&
-          message.message_type === 'text' &&
-          message.variants?.translatedLanguage !== userLanguage
+          message.message_type === 'text'
         );
       })
       // **NEWEST FIRST**: Sort by timestamp descending
@@ -76,7 +103,7 @@ export function useFastAutoTranslation(
 
       const translationResult: TranslationResult = {
         id: message.id,
-        translation: result.translation,
+        translation: result.translatedContent,
         model: result.model,
       };
 
@@ -92,7 +119,7 @@ export function useFastAutoTranslation(
                 ...msg,
                 variants: {
                   ...msg.variants,
-                  translatedContent: result.translation,
+                  translatedContent: result.translatedContent,
                   translatedLanguage: userLanguage,
                   translationModel: result.model,
                   translationTimestamp: new Date().toISOString(),

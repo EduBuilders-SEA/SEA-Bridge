@@ -10,7 +10,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-const TranscribeAndTranslateInputSchema = z.object({
+const _TranscribeAndTranslateInputSchema = z.object({
   audioDataUri: z
     .string()
     .describe(
@@ -18,14 +18,14 @@ const TranscribeAndTranslateInputSchema = z.object({
     ),
   targetLanguage: z.string().describe('The language to translate the transcription into (e.g., "Vietnamese", "English").'),
 });
-export type TranscribeAndTranslateInput = z.infer<typeof TranscribeAndTranslateInputSchema>;
+export type TranscribeAndTranslateInput = z.infer<typeof _TranscribeAndTranslateInputSchema>;
 
-const TranscribeAndTranslateOutputSchema = z.object({
+const _TranscribeAndTranslateOutputSchema = z.object({
   transcription: z.string().describe('The transcribed text from the audio.'),
   translation: z.string().describe('The translated version of the transcription.'),
   model: z.enum(['hybrid-sealion', 'gemini-only']).describe('The AI model combination used.'),
 });
-export type TranscribeAndTranslateOutput = z.infer<typeof TranscribeAndTranslateOutputSchema>;
+export type TranscribeAndTranslateOutput = z.infer<typeof _TranscribeAndTranslateOutputSchema>;
 
 
 export async function transcribeAndTranslate(
