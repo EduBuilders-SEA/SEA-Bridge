@@ -60,13 +60,13 @@ export function useTranslationNotifications() {
     if (!job.download_url) return;
 
     // Auto-download logic based on file size
-    const shouldAutoDownload = (job.file_size_bytes || 0) < 1024 * 1024; // < 1MB
+    const shouldAutoDownload = (job.file_size_bytes ?? 0) < 1024 * 1024; // < 1MB
 
     if (shouldAutoDownload) {
       // Auto-download small files
       const link = document.createElement('a');
       link.href = job.download_url;
-      link.download = job.translated_filename || `translated_${job.original_filename}`;
+      link.download = job.translated_filename ?? `translated_${job.original_filename}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -231,8 +231,8 @@ export function useCheckTranslationStatus() {
       const accessToken = user ? await user.getIdToken() : undefined;
       return await checkTranslationStatus(
         input.jobId,
-        input.messageId || '',
-        input.targetLanguage || '',
+        input.messageId ?? '',
+        input.targetLanguage ?? '',
         accessToken
       );
     },

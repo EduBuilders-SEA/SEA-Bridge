@@ -356,7 +356,7 @@ async function executeRealtimeTranslation({
   supabase,
   messageData,
   cacheKey,
-  currentUserId,
+  currentUserId: _currentUserId,
 }: {
   fileContent: string;
   input: TranslateDocumentInput;
@@ -540,6 +540,9 @@ async function executeBatchTranslation({
 }
 
 // Separate action to check job status
+// ...existing code...
+
+// ✅ Enhanced action with background polling
 export async function checkTranslationStatus(
   jobId: string,
   messageId: string,
@@ -550,7 +553,7 @@ export async function checkTranslationStatus(
     const supabase = await createClient(accessToken);
     const result = await documentTranslator.checkJobStatus(jobId);
 
-    // Update persistent translation jobs table
+    // Update database
     const updateData: Record<string, unknown> = {
       status: result.status,
       updated_at: new Date().toISOString(),
@@ -558,10 +561,40 @@ export async function checkTranslationStatus(
 
     if (result.status === 'COMPLETED') {
       updateData.completed_at = new Date().toISOString();
-      updateData.download_url = result.downloadUrl;
       updateData.progress_percent = 100;
+
+      if (result.downloadUrl) {
+        try {
+          const { data: jobData } = await supabase
+            .from('translation_jobs')
+            .select('original_filename')
+            .eq('aws_job_id', jobId)
+            .single();
+
+          if (jobData?.original_filename) {
+            const originalName = jobData.original_filename;
+            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+            const extension = originalName.split('.').pop() || 'txt';
+            const translatedFilename = `${nameWithoutExt}_${targetLanguage}.${extension}`;
+
+            updateData.download_url = result.downloadUrl;
+            updateData.translated_filename = translatedFilename;
+          } else {
+            updateData.download_url = result.downloadUrl;
+          }
+        } catch (urlError) {
+          console.error('Error processing download URL:', urlError);
+          updateData.download_url = result.downloadUrl;
+        }
+      }
+
+      // ✅ Stop background polling when job completes
+      documentTranslator.stopBackgroundPolling(jobId);
     } else if (result.status === 'FAILED') {
       updateData.error_message = result.errorMessage ?? 'Translation failed';
+
+      // ✅ Stop background polling when job fails
+      documentTranslator.stopBackgroundPolling(jobId);
     } else if (result.status === 'IN_PROGRESS' && 'progress' in result) {
       updateData.progress_percent = result.progress ?? 0;
     }
@@ -571,8 +604,8 @@ export async function checkTranslationStatus(
       .update(updateData)
       .eq('aws_job_id', jobId);
 
-    if (result.status === 'COMPLETED' && result.downloadUrl) {
-      // Also update message variants cache for backward compatibility
+    // Update message variants cache if completed
+    if (result.status === 'COMPLETED' && updateData.download_url) {
       const cacheKey = `aws_batch_${targetLanguage}`;
 
       await supabase
@@ -580,9 +613,10 @@ export async function checkTranslationStatus(
         .update({
           variants: {
             [`${cacheKey}`]: {
-              downloadUrl: result.downloadUrl,
+              downloadUrl: updateData.download_url,
               completedAt: new Date().toISOString(),
               jobId,
+              translatedFilename: updateData.translated_filename,
             },
           },
         })
@@ -591,6 +625,7 @@ export async function checkTranslationStatus(
 
     return result;
   } catch (error) {
+    console.error('Error in checkTranslationStatus:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Status check failed',
