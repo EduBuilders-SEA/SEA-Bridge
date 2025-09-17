@@ -2,6 +2,7 @@ import Logo from '@/components/logo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { TranslationJobsNotification } from './translation-jobs-notification';
 import { ArrowLeft, Globe } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -50,6 +51,7 @@ export default function ChatPageLayout({
           </div>
         </div>
         <div className='flex items-center gap-3'>
+          <TranslationJobsNotification />
           {userLanguage && (
             <Badge
               variant='secondary'
