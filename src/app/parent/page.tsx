@@ -1,6 +1,7 @@
 'use client';
 
 import { AddContactForm } from '@/components/chat/add-contact-form';
+import { TranslationJobsNotification } from '@/components/chat/translation-jobs-notification';
 import Logo from '@/components/logo';
 import { useLanguageStore } from '@/components/store/language-store';
 import { SmartMicroTours, TourOverlay, TourTrigger } from '@/components/tour';
@@ -147,6 +148,7 @@ export default function ParentContactsPage() {
               </h1>
             </div>
             <div className='flex items-center gap-3'>
+              <TranslationJobsNotification />
               <TourTrigger variant='floating' />
               <Link href='/' className='hidden sm:block'>
                 <Logo className='w-24 h-auto' />

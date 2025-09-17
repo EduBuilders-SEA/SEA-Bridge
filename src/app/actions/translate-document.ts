@@ -2,6 +2,7 @@
 
 import { translateDocument as translateDocumentFlow } from '@/ai/flows/translate-document';
 import { DoclingDocumentParser } from '@/lib/document/docling-parser';
+import { getFileExtension } from '@/lib/document/file-utils';
 import { DocumentParser } from '@/lib/document/parser';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
@@ -107,10 +108,9 @@ async function downloadFile(
  * File type detection and validation using Docling
  */
 function detectFileType(fileName: string, blob?: Blob): FileMetadata {
-  const extension = fileName.split('.').pop()?.toLowerCase() ?? '';
+  const extension = getFileExtension(fileName);
   const mimeType = blob?.type ?? getMimeFromExtension(extension);
 
-  // Use Docling's supported format check
   const canTranslate = DoclingDocumentParser.isSupportedByDocling(
     fileName,
     mimeType

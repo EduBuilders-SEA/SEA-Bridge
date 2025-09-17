@@ -159,7 +159,7 @@ export default function MessageInput({
       persistMessage({
         id: sent?.id,
         sent_at: sent?.sent_at,
-        content: `📎 ${file.name} (${(file.size / 1024).toFixed(1)}KB)`,
+        content: `📎 ${file.name}`,
         message_type: 'file', // Changed from 'document' to 'file'
         contact_link_id: contactId,
         file_url: uploadResult.signedUrl ?? uploadResult.path,

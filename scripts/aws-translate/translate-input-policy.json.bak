@@ -1,0 +1,36 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowTranslateServiceAccess",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "translate.amazonaws.com"
+      },
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::sea-bridge-translate-input",
+        "arn:aws:s3:::sea-bridge-translate-input/*"
+      ]
+    },
+    {
+      "Sid": "AllowTranslateServiceRoleAccess",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::071564565652:role/translate-service-role"
+      },
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::sea-bridge-translate-input",
+        "arn:aws:s3:::sea-bridge-translate-input/*"
+      ]
+    }
+  ]
+}
