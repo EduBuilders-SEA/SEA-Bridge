@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './use-auth';
 import { useNotificationSound } from './use-notification-sound';
+import { v4 as uuidv4 } from 'uuid';
 
 const EVENT_MESSAGE_TYPE = 'message';
 const EVENT_MESSAGE_EDIT = 'message_edit';
@@ -48,7 +49,7 @@ export function useRealtimeMessages(contactLinkId: string) {
 
       // ✅ DRY: Create message with Zod schema
       const message = ChatMessageSchema.parse({
-        id: crypto.randomUUID(),
+        id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : uuidv4(),
         content: validatedData.content,
         message_type: validatedData.message_type,
         contact_link_id: contactLinkId,
