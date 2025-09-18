@@ -16,11 +16,12 @@ build/
 dist/
 
 # Environment variables
-.env
+# .env  # Comment out to include .env file in Docker build
 .env.local
 .env.development.local
 .env.test.local
-# Keep .env.production.sample for Docker build
+.env.production.local
+# Keep .env for Docker build
 # .env.production.sample
 .env.production.local
 

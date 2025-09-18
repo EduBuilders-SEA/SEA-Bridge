@@ -23,8 +23,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Copy production environment file for build (contains dummy values to prevent build errors)
-COPY .env.production.sample .env.production
+# Copy environment file for build (if it exists)
+COPY .env* ./
 
 RUN npm run build
 
