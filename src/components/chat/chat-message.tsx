@@ -29,16 +29,11 @@ import {
   Globe,
   Loader2,
   MoreHorizontal,
-  Pause,
-  Play,
-  Quote,
   Sparkles,
   Trash2,
-  Volume2,
 } from 'lucide-react';
 import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
-import { Slider } from '../ui/slider';
+import { useState } from 'react';
 
 type ChatMessageProps = {
   message: ChatMessageType;
@@ -52,8 +47,8 @@ type ChatMessageProps = {
 };
 
 import React from 'react';
-import { DocumentTranslator } from './document-translator';
 import { AWSDocumentTranslator } from './aws-document-translator';
+import { VoiceNotePlayer } from './voice-note-player';
 
 interface MessageTranslationStatusProps {
   isTranslating: boolean;
@@ -120,135 +115,6 @@ const AiActionButton = ({
     {isLoading ? <Loader2 className='w-3 h-3 animate-spin' /> : children}
   </Button>
 );
-
-const formatTime = (time: number) => {
-  if (isNaN(time) || !isFinite(time)) {
-    return '0:00';
-  }
-  const minutes = Math.floor(time / 60);
-  const seconds = Math.floor(time % 60);
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-};
-
-const VoiceNotePlayer = ({
-  audioDataUri,
-  isSentByCurrentUser,
-}: {
-  audioDataUri: string;
-  isSentByCurrentUser: boolean;
-}) => {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume] = useState(1);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (audio) {
-      const setAudioData = () => {
-        if (isFinite(audio.duration)) {
-          setDuration(audio.duration);
-        }
-      };
-
-      const setAudioTime = () => setCurrentTime(audio.currentTime);
-
-      audio.addEventListener('loadedmetadata', setAudioData);
-      audio.addEventListener('timeupdate', setAudioTime);
-
-      // If audio is already loaded
-      if (audio.readyState >= 2) {
-        setAudioData();
-      }
-
-      return () => {
-        audio.removeEventListener('loadedmetadata', setAudioData);
-        audio.removeEventListener('timeupdate', setAudioTime);
-      };
-    }
-  }, []);
-
-  const togglePlayPause = () => {
-    const audio = audioRef.current;
-    if (audio) {
-      if (isPlaying) {
-        audio.pause();
-      } else {
-        audio.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  const handleSliderChange = (value: number[]) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = value[0];
-      setCurrentTime(value[0]);
-    }
-  };
-
-  const handleVolumeChange = (value: number[]) => {
-    if (audioRef.current) {
-      audioRef.current.volume = value[0];
-      setVolume(value[0]);
-    }
-  };
-
-  const timeClass = isSentByCurrentUser
-    ? 'text-primary-foreground/80'
-    : 'text-card-foreground/80';
-
-  return (
-    <div className='flex items-center gap-3 p-2 rounded-md'>
-      <audio
-        ref={audioRef}
-        src={audioDataUri}
-        preload='metadata'
-        onEnded={() => setIsPlaying(false)}
-      />
-      <Button
-        variant='ghost'
-        size='icon'
-        onClick={togglePlayPause}
-        className='w-8 h-8 rounded-full flex-shrink-0'
-      >
-        {isPlaying ? (
-          <Pause className='w-4 h-4' />
-        ) : (
-          <Play className='w-4 h-4' />
-        )}
-      </Button>
-      <div className='flex-1 flex items-center gap-2'>
-        <span className={cn('text-xs font-mono w-9', timeClass)}>
-          {formatTime(currentTime)}
-        </span>
-        <Slider
-          min={0}
-          max={duration || 1}
-          step={0.1}
-          value={[currentTime]}
-          onValueChange={handleSliderChange}
-          className='flex-1'
-        />
-        <span className={cn('text-xs font-mono w-9', timeClass)}>
-          {formatTime(duration)}
-        </span>
-      </div>
-      <div className='hidden sm:flex items-center gap-2 w-24'>
-        <Volume2 className='w-4 h-4' />
-        <Slider
-          min={0}
-          max={1}
-          step={0.1}
-          value={[volume]}
-          onValueChange={handleVolumeChange}
-          className='flex-1'
-        />
-      </div>
-    </div>
-  );
-};
 
 const MessageContent = ({
   message,
@@ -443,87 +309,13 @@ const MessageContent = ({
   }
   if (message.message_type === 'voice' && message.variants?.audioDataUri) {
     return (
-      <div>
-        <VoiceNotePlayer
-          audioDataUri={message.variants.audioDataUri}
-          isSentByCurrentUser={isSentByCurrentUser}
-        />
-        {message.variants?.isTranscribing && (
-          <div className='mt-3 pt-3 border-t border-border/50'>
-            <div
-              className={cn(
-                'flex items-center gap-2',
-                isSentByCurrentUser
-                  ? 'text-primary-foreground/90'
-                  : 'text-primary/90'
-              )}
-            >
-              <Loader2 className='w-4 h-4 animate-spin' />
-              <span className='text-sm'>Processing audio...</span>
-            </div>
-          </div>
-        )}
-        {message.variants?.transcription && (
-          <div className='mt-3 pt-3 border-t border-border/50'>
-            <p
-              className={cn(
-                'text-xs font-bold mb-1 font-headline flex items-center gap-1.5',
-                isSentByCurrentUser ? 'text-primary-foreground' : 'text-primary'
-              )}
-            >
-              <Quote className='w-4 h-4' /> Transcription
-            </p>
-            <p
-              className={cn(
-                'font-body text-sm italic',
-                isSentByCurrentUser
-                  ? 'text-primary-foreground/90'
-                  : 'text-card-foreground/90'
-              )}
-            >
-              "{message.variants.transcription}"
-            </p>
-          </div>
-        )}
-        {message.variants?.translatedContent && (
-          <div className='mt-3 pt-3 border-t border-border/50'>
-            <p
-              className={cn(
-                'text-xs font-bold mb-1 font-headline',
-                isSentByCurrentUser ? 'text-primary-foreground' : 'text-primary'
-              )}
-            >
-              Translation
-            </p>
-            {message.variants?.isTranslating &&
-              !message.variants?.translatedContent && (
-                <div
-                  className={cn(
-                    'flex items-center gap-2',
-                    isSentByCurrentUser
-                      ? 'text-primary-foreground/90'
-                      : 'text-card-foreground/90'
-                  )}
-                >
-                  <Loader2 className='w-4 h-4 animate-spin' />
-                  <span className='text-sm'>Translating...</span>
-                </div>
-              )}
-            {message.variants?.translatedContent && (
-              <p
-                className={cn(
-                  'font-body text-sm',
-                  isSentByCurrentUser
-                    ? 'text-primary-foreground/90'
-                    : 'text-card-foreground/90'
-                )}
-              >
-                {message.variants.translatedContent}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+      <VoiceNotePlayer
+        audioDataUri={message.variants.audioDataUri}
+        transcription={message.variants.transcription}
+        translatedContent={message.variants.translatedContent}
+        isTranscribing={message.variants.isTranscribing}
+        isSentByCurrentUser={isSentByCurrentUser}
+      />
     );
   }
 
