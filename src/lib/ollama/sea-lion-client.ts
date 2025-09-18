@@ -10,13 +10,15 @@ export interface OllamaResponse {
 
 export class SeaLionOllamaClient {
   private readonly endpoint: string;
-  private readonly model = 'aisingapore/Llama-SEA-LION-v3.5-8B-R';
+  private readonly model: string;
   // private readonly model = 'aisingapore/Gemma-SEA-LION-v4-27B-IT'; // 🆕 Updated!
-
-  
 
   constructor() {
     this.endpoint = process.env.OLLAMA_ENDPOINT ?? 'http://localhost:11434';
+    // Prefer explicit OLLAMA model override; default to the fast 8B model
+    this.model =
+      process.env.SEA_LION_OLLAMA_MODEL?.trim() ||
+      'aisingapore/Llama-SEA-LION-v3.5-8B-R';
   }
 
   async translateMessage(

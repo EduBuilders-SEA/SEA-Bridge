@@ -4,7 +4,7 @@
 
 set -e
 
-echo "🚀 Starting complete SEA-Bridge deployment on g5.4xlarge..."
+echo "🚀 Starting complete SEA-Bridge deployment on g5.12xlarge..."
 
 # Update system
 echo "📦 Updating system packages..."
@@ -67,17 +67,35 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-# Build and start services
-echo "🏗️  Building and starting SEA-Bridge services..."
-docker-compose up --build -d
+# Ensure .env is present
+if [ ! -f .env ]; then
+  echo "❌ .env not found in project root. Create it before deploying."; exit 1
+fi
+
+# Export env for local use in this script (MODEL override, etc.)
+set -a; source .env; set +a
+
+# Build and start services using .env
+echo "🏗️  Building and starting SEA-Bridge services (with .env)..."
+docker-compose --env-file .env up --build -d
 
 # Wait for Ollama to be ready
 echo "⏳ Waiting for Ollama to be ready..."
 sleep 10
 
-# Pull SEA-LION model
-echo "🦁 Pulling SEA-LION model..."
-docker-compose exec ollama ollama pull aisingapore/Llama-SEA-LION-v3.5-8B-R
+# Pull SEA-LION model (override via SEA_LION_OLLAMA_MODEL, default to 27B for prod)
+MODEL="${SEA_LION_OLLAMA_MODEL:-aisingapore/Gemma-SEA-LION-v4-27B-IT}"
+echo "🦁 Pulling SEA-LION model: $MODEL"
+docker-compose exec -T ollama ollama pull "$MODEL"
+
+# Quick health checks
+echo "🔍 Health checks..."
+if ! curl -sf http://localhost:11434/api/version >/dev/null; then
+  echo "❌ Ollama API not responding on :11434"; exit 1
+fi
+if ! curl -sf http://localhost:3000 >/dev/null; then
+  echo "❌ Next.js app not responding on :3000"; exit 1
+fi
 
 # Get public IP
 PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
