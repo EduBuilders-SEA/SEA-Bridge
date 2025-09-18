@@ -40,13 +40,8 @@ services:
       - ollama_data:/root/.ollama
     environment:
       - OLLAMA_HOST=0.0.0.0
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    # Enable GPU access in Compose (non-Swarm)
+    gpus: all
     networks:
       - sea-bridge-network
     restart: unless-stopped
@@ -57,4 +52,3 @@ volumes:
 networks:
   sea-bridge-network:
     driver: bridge
-
