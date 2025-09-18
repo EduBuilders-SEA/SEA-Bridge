@@ -93,11 +93,6 @@ Notes:
 
 | Issue | Fix |
 | ----- | --- |
-| OTP fails on localhost | Use ngrok HTTPS and add domain to Firebase |
 | Translation slow | Confirm Ollama running at $OLLAMA_ENDPOINT |
 | RLS denial | Ensure profile.name not null; check JWT sub matches profile id |
 | Messages stale | Verify subscription channel `messages:{contact_link_id}` active |
-
-## License / Use
-
-Internal hackathon prototype. Add explicit license before public release.
