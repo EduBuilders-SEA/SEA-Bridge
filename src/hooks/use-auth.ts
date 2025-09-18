@@ -5,9 +5,14 @@ import { auth } from '@/lib/firebase/config';
 import { signOut } from 'firebase/auth';
 
 export function useAuth() {
+  // Handle case where auth might be null during build
   const [user, loading, error] = useAuthState(auth);
   
   const logout = async () => {
+    if (!auth) {
+      throw new Error('Firebase Auth not initialized');
+    }
+    
     try {
       await signOut(auth);
     } catch (error) {
@@ -16,5 +21,10 @@ export function useAuth() {
     }
   };
   
-  return { user, loading, error, logout };
+  return { 
+    user, 
+    loading: loading || !auth, // Consider loading if auth not initialized
+    error, 
+    logout 
+  };
 }
