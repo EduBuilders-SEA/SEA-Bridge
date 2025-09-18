@@ -2,7 +2,6 @@
 
 import { chunkMessageForSms } from '@/ai/flows/chunk-message-for-sms';
 import { type SummarizeConversationOutput } from '@/ai/flows/summarize-conversation';
-import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
 // import { AttendanceForm } from '@/components/chat/attendance-form';
 import ChatMessage from '@/components/chat/chat-message';
 import ChatPageLayout from '@/components/chat/chat-page-layout';
@@ -246,34 +245,6 @@ export default function TeacherChatPageClient({
     }
   };
 
-  const handleSendVoice = async (audioDataUri: string) => {
-    // Return the first message (the "Voice note") so we can persist with that id
-    const first = sendMessage({
-      content: 'Voice note',
-      message_type: 'voice',
-    });
-
-    try {
-      const result = await transcribeAndTranslate({
-        audioDataUri,
-        targetLanguage: 'English',
-      });
-
-      sendMessage({
-        content: result.transcription,
-        message_type: 'voice',
-      });
-    } catch (error) {
-      console.error('Failed to transcribe voice note:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Could not process the voice note. Please try again.',
-      });
-    }
-    return first;
-  };
-
   const handleSendFile = (file: File) => {
     return sendMessage({
       content: file.name,
@@ -385,10 +356,11 @@ export default function TeacherChatPageClient({
           <div className='p-4 md:p-6 border-t bg-background'>
             <MessageInput
               contactId={contactId}
+              contactLinkId={contactId}
               onSendMessage={handleSendMessage}
               onSendSms={handleSendSms}
-              onSendVoice={handleSendVoice}
               onSendFile={handleSendFile}
+              channel={channel}
             />
           </div>
         </TabsContent>

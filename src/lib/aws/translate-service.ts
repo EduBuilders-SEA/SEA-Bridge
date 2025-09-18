@@ -205,9 +205,11 @@ class DocumentTranslator {
   private pollingManager = BackgroundPollingManager.getInstance();
 
   constructor() {
-    // Skip AWS client initialization on client side
+    // Prevent client-side instantiation
     if (typeof window !== 'undefined') {
-      // throw new Error('DocumentTranslator cannot be instantiated on client side');
+      throw new Error(
+        'DocumentTranslator cannot be instantiated on client side. Use server actions instead.'
+      );
     }
   }
 
@@ -217,28 +219,39 @@ class DocumentTranslator {
     }
 
     const region = process.env.AWS_REGION ?? 'us-east-1';
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID ?? '';
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY ?? '';
+    // const sessionToken = process.env.AWS_SESSION_TOKEN;
 
-    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+    // ✅ Debug credentials loading
+    console.error('🔍 AWS Credentials Debug:', {
+      region,
+      hasAccessKey: !!accessKeyId,
+      hasSecretKey: !!secretAccessKey,
+      accessKeyPrefix: `${accessKeyId.substring(0, 8)}...`,
+      secretKeyPrefix: `${secretAccessKey.substring(0, 8)}...`,
+      isTemporaryCredentials: accessKeyId.startsWith('ASIA'),
+    });
 
     if (!accessKeyId || !secretAccessKey) {
-      throw new Error('AWS credentials not found in environment variables');
+      throw new Error(
+        'AWS credentials are missing. Please check AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.'
+      );
     }
+
+    const credentials = {
+      accessKeyId,
+      secretAccessKey,
+    };
 
     this.translateClient = new TranslateClient({
       region,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
+      credentials,
     });
 
     this.s3Client = new S3Client({
       region,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
+      credentials,
     });
   }
 
@@ -251,7 +264,7 @@ class DocumentTranslator {
   ): Promise<string> {
     try {
       this.initializeClients();
-      
+
       // ✅ Normalize language codes for AWS Translate
       const normalizedTargetLanguage = normalizeLanguageCode(targetLanguage);
       const normalizedSourceLanguage = sourceLanguage
@@ -345,7 +358,7 @@ class DocumentTranslator {
   async checkJobStatus(jobId: string): Promise<TranslationJobStatus> {
     try {
       this.initializeClients();
-      
+
       const command = new DescribeTextTranslationJobCommand({ JobId: jobId });
       const result = await this.translateClient.send(command);
 
@@ -431,7 +444,7 @@ class DocumentTranslator {
   ): Promise<string | null> {
     try {
       this.initializeClients();
-      
+
       const outputPrefix = outputS3Uri.replace(
         `s3://${this.outputBucket}/`,
         ''

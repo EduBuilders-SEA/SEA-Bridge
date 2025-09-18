@@ -4,9 +4,7 @@ import { z } from 'zod';
 export const MessageSchema = z.object({
   id: z.string().uuid(),
   content: z.string(),
-  message_type: z
-    .enum(['text', 'voice', 'image', 'file'])
-    .default('text'),
+  message_type: z.enum(['text', 'voice', 'image', 'file']).default('text'),
   contact_link_id: z.string().uuid(),
   sender_id: z.string(),
   sent_at: z.string(),
@@ -19,6 +17,8 @@ export const MessageSchema = z.object({
       translationTimestamp: z.string().optional(),
       audioUrl: z.string().optional(),
       transcription: z.string().optional(),
+      transcriptionError: z.string().optional(),
+      transcribedAt: z.string().optional(),
       simplifiedContent: z.string().optional(),
       isSimplifying: z.boolean().optional(),
       summary: z.string().optional(),
@@ -68,9 +68,7 @@ export const SendMessageSchema = z.object({
   id: z.string().uuid().optional(),
   contact_link_id: z.string().uuid(),
   content: z.string().min(1),
-  message_type: z
-    .enum(['text', 'voice', 'image', 'file'])
-    .default('text'),
+  message_type: z.enum(['text', 'voice', 'image', 'file']).default('text'),
   variants: MessageSchema.shape.variants,
   file_url: z.string().url().nullable().optional(),
   sent_at: z.string().optional(),

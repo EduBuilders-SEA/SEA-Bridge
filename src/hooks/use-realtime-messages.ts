@@ -7,10 +7,10 @@ import {
   type SendMessageData,
 } from '@/lib/schemas';
 import { createClient } from '@/lib/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './use-auth';
 import { useNotificationSound } from './use-notification-sound';
-import { useQueryClient } from '@tanstack/react-query';
 
 const EVENT_MESSAGE_TYPE = 'message';
 const EVENT_MESSAGE_EDIT = 'message_edit';
@@ -218,12 +218,12 @@ export function useRealtimeMessages(contactLinkId: string) {
         // Update local realtime messages state - PRESERVE translations
         setMessages((current) => {
           return current.map((msg) =>
-            msg.id === messageId 
-              ? { 
-                  ...msg, 
+            msg.id === messageId
+              ? {
+                  ...msg,
                   content, // Update content
                   // Keep existing variants (including translations)
-                } 
+                }
               : msg
           );
         });
@@ -235,12 +235,12 @@ export function useRealtimeMessages(contactLinkId: string) {
             const wasUpdated = old.some((msg) => msg.id === messageId);
             if (wasUpdated) {
               return old.map((msg) =>
-                msg.id === messageId 
-                  ? { 
-                      ...msg, 
+                msg.id === messageId
+                  ? {
+                      ...msg,
                       content, // Update content
                       // Keep existing variants (including translations)
-                    } 
+                    }
                   : msg
               );
             }
@@ -262,7 +262,7 @@ export function useRealtimeMessages(contactLinkId: string) {
           return current.filter((msg) => msg.id !== messageId);
         });
 
-      // IMPORTANT: Also update React Query cache for old messages
+        // IMPORTANT: Also update React Query cache for old messages
         queryClient.setQueryData<ChatMessage[]>(
           ['messages', contactLinkId],
           (old = []) => {
@@ -291,7 +291,11 @@ export function useRealtimeMessages(contactLinkId: string) {
         // This is useful for showing real-time upload progress to other users
       })
       .on('broadcast', { event: EVENT_FILE_UPLOAD_COMPLETE }, (payload) => {
-        const { messageId: _messageId, fileName, uploadedBy: _uploadedBy } = payload.payload as {
+        const {
+          messageId: _messageId,
+          fileName,
+          uploadedBy: _uploadedBy,
+        } = payload.payload as {
           messageId: string;
           fileName: string;
           uploadedBy: string;
@@ -304,7 +308,11 @@ export function useRealtimeMessages(contactLinkId: string) {
       })
       // Listen for translation status updates
       .on('broadcast', { event: EVENT_TRANSLATION_START }, (payload) => {
-        const { messageId, targetLanguage, initiatedBy: _initiatedBy } = payload.payload as {
+        const {
+          messageId,
+          targetLanguage,
+          initiatedBy: _initiatedBy,
+        } = payload.payload as {
           messageId: string;
           targetLanguage: string;
           initiatedBy: string;
@@ -365,6 +373,54 @@ export function useRealtimeMessages(contactLinkId: string) {
           );
         });
       })
+      // Listen for database UPDATE events (e.g., voice message transcription completion)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `contact_link_id=eq.${contactLinkId}`,
+        },
+        (payload) => {
+          const updatedMessage = payload.new as {
+            id: string;
+            content: string;
+            variants: Record<string, unknown> | null;
+          };
+
+          // Update both realtime messages state and React Query cache
+          setMessages((current) => {
+            return current.map((msg) =>
+              msg.id === updatedMessage.id
+                ? {
+                    ...msg,
+                    content: updatedMessage.content,
+                    variants: updatedMessage.variants,
+                  }
+                : msg
+            );
+          });
+
+          // Also update React Query cache for older messages
+          queryClient.setQueryData(
+            ['messages', contactLinkId],
+            (old: ChatMessage[]) => {
+              if (!old) return old;
+
+              return old.map((msg) =>
+                msg.id === updatedMessage.id
+                  ? {
+                      ...msg,
+                      content: updatedMessage.content,
+                      variants: updatedMessage.variants,
+                    }
+                  : msg
+              );
+            }
+          );
+        }
+      )
       .subscribe((status) => {
         // Channel status updated
         setIsConnected(status === 'SUBSCRIBED');

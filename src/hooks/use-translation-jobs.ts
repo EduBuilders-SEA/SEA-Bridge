@@ -1,6 +1,6 @@
 'use client';
 
-import { documentTranslator } from '@/lib/aws/translate-service';
+import { checkTranslationJobStatus } from '@/app/actions/translation-jobs';
 import { createClient } from '@/lib/supabase/client';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -46,43 +46,58 @@ export function useTranslationJobs() {
   useEffect(() => {
     // Initial load
     refreshJobs();
+  }, []); // Only run on mount
 
-    // Set up background polling for active jobs
-    const setupBackgroundPolling = async () => {
-      const supabase = createClient();
-      const { data: activeJobs } = await supabase
-        .from('translation_jobs')
-        .select('aws_job_id, id, message_id, target_language')
-        .in('status', ['SUBMITTED', 'IN_PROGRESS']);
+  // ✅ Set up client-side polling for active jobs using server actions
+  useEffect(() => {
+    const activeJobIds = jobs
+      .filter((job) => ['SUBMITTED', 'IN_PROGRESS'].includes(job.status))
+      .map((job) => job.aws_job_id);
 
-      if (activeJobs) {
-        activeJobs.forEach((job) => {
-          documentTranslator.startBackgroundPolling(
-            job.aws_job_id,
-            (status) => {
-              // Update job status in real-time without blocking UI
-              if (status.status === 'COMPLETED' || status.status === 'FAILED') {
-                // Refresh all jobs when a job completes
-                refreshJobs();
-              }
-            }
-          );
+    if (activeJobIds.length === 0) {
+      return; // No active jobs to poll
+    }
+
+    const pollActiveJobs = async () => {
+      try {
+        // Check status of all active jobs
+        const statusPromises = activeJobIds.map(async (jobId) => {
+          try {
+            return await checkTranslationJobStatus(jobId);
+          } catch (error) {
+            console.error(`Error checking status for job ${jobId}:`, error);
+            return null;
+          }
         });
+
+        const statuses = await Promise.all(statusPromises);
+
+        // Check if any job completed or failed
+        const hasCompletedJob = statuses.some(
+          (status) =>
+            status &&
+            (status.status === 'COMPLETED' || status.status === 'FAILED')
+        );
+
+        if (hasCompletedJob) {
+          // Refresh all jobs when a job completes
+          refreshJobs();
+        }
+      } catch (error) {
+        console.error('Error polling active jobs:', error);
       }
     };
 
-    setupBackgroundPolling();
+    // Poll every 30 seconds for active jobs
+    const pollInterval = setInterval(pollActiveJobs, 30000);
 
-    // Cleanup function
+    // Also poll immediately
+    pollActiveJobs();
+
     return () => {
-      // Stop all background polling when component unmounts
-      jobs.forEach((job) => {
-        if (['SUBMITTED', 'IN_PROGRESS'].includes(job.status)) {
-          documentTranslator.stopBackgroundPolling(job.aws_job_id);
-        }
-      });
+      clearInterval(pollInterval);
     };
-  }, []); // Only run on mount
+  }, [jobs, refreshJobs]);
 
   // ✅ Optimized periodic refresh (less frequent since background polling handles active jobs)
   useEffect(() => {
