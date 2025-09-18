@@ -111,8 +111,71 @@ Audio to transcribe:`,
     const normalized = lang.toLowerCase().trim();
     // Handle common language variations
     if (normalized.includes('english') || normalized === 'en') return 'english';
-    if (normalized.includes('tagalog') || normalized.includes('filipino') || normalized === 'tl') return 'tagalog';
+    if (
+      normalized.includes('tagalog') ||
+      normalized.includes('filipino') ||
+      normalized === 'tl'
+    )
+      return 'tagalog';
     if (normalized.includes('spanish') || normalized === 'es') return 'spanish';
+    if (
+      normalized.includes('chinese') ||
+      normalized.includes('mandarin') ||
+      normalized.includes('中文') ||
+      normalized === 'zh'
+    )
+      return 'chinese';
+    if (
+      normalized.includes('malay') ||
+      normalized.includes('bahasa melayu') ||
+      normalized === 'ms'
+    )
+      return 'malay';
+    if (
+      normalized.includes('tamil') ||
+      normalized.includes('தமிழ்') ||
+      normalized === 'ta'
+    )
+      return 'tamil';
+    if (
+      normalized.includes('vietnamese') ||
+      normalized.includes('tiếng việt') ||
+      normalized === 'vi'
+    )
+      return 'vietnamese';
+    if (
+      normalized.includes('thai') ||
+      normalized.includes('ไทย') ||
+      normalized === 'th'
+    )
+      return 'thai';
+    if (
+      normalized.includes('myanmar') ||
+      normalized.includes('burmese') ||
+      normalized.includes('မြန်မာဘာသာ') ||
+      normalized === 'my'
+    )
+      return 'myanmar';
+    if (
+      normalized.includes('khmer') ||
+      normalized.includes('cambodian') ||
+      normalized.includes('ខ្មែរ') ||
+      normalized === 'km'
+    )
+      return 'khmer';
+    if (
+      normalized.includes('lao') ||
+      normalized.includes('laotian') ||
+      normalized.includes('ລາວ') ||
+      normalized === 'lo'
+    )
+      return 'lao';
+    if (
+      normalized.includes('indonesian') ||
+      normalized.includes('bahasa indonesia') ||
+      normalized === 'id'
+    )
+      return 'indonesian';
     // Add more mappings as needed
     return normalized;
   };
