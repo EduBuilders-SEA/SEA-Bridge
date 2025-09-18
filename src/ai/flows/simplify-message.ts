@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview A flow for simplifying a message into plain language.
+ * @fileOverview A hybrid flow for simplifying messages using Sea-Lion (primary) with Gemini fallback.
  *
  * - simplifyMessage - A function that takes a message and returns a simplified version.
  * - SimplifyMessageInput - The input type for the simplifyMessage function.
@@ -10,24 +10,60 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-const SimplifyMessageInputSchema = z.object({
+const _SimplifyMessageInputSchema = z.object({
   content: z.string().describe('The text content of the message to be simplified.'),
+  language: z.string().optional().describe('The language of the message (optional, defaults to English).'),
 });
-export type SimplifyMessageInput = z.infer<typeof SimplifyMessageInputSchema>;
+export type SimplifyMessageInput = z.infer<typeof _SimplifyMessageInputSchema>;
 
-const SimplifyMessageOutputSchema = z.object({
+const _SimplifyMessageOutputSchema = z.object({
   simplifiedContent: z.string().describe('The simplified, plain-language version of the text.'),
+  model: z.enum(['sea-lion', 'gemini']).describe('The AI model used for simplification.'),
 });
-export type SimplifyMessageOutput = z.infer<typeof SimplifyMessageOutputSchema>;
+export type SimplifyMessageOutput = z.infer<typeof _SimplifyMessageOutputSchema>;
 
 export async function simplifyMessage(input: SimplifyMessageInput): Promise<SimplifyMessageOutput> {
-  return simplifyMessageFlow(input);
+  const language = input.language ?? 'English';
+  
+  // Try Ollama SEA-LION first (FAST!)
+  try {
+    const { seaLionOllama } = await import('@/lib/ollama/sea-lion-client');
+    
+    const simplifiedContent = await seaLionOllama.simplifyMessage(input.content, language);
+    return {
+      simplifiedContent,
+      model: 'sea-lion',
+    };
+  } catch (error) {
+    console.warn('Ollama SEA-LION simplification failed, falling back to Gemini:', error);
+    
+    // Fallback to Gemini
+    try {
+      const { simplifiedContent } = await simplifyMessageFallback({ content: input.content });
+      return {
+        simplifiedContent,
+        model: 'gemini',
+      };
+    } catch (fallbackError) {
+      console.error('All simplification failed:', fallbackError);
+      throw new Error('Simplification unavailable');
+    }
+  }
 }
 
+// Gemini fallback for message simplification
 const simplifyMessagePrompt = ai.definePrompt({
   name: 'simplifyMessagePrompt',
-  input: { schema: SimplifyMessageInputSchema },
-  output: { schema: SimplifyMessageOutputSchema },
+  input: { 
+    schema: z.object({
+      content: z.string(),
+    })
+  },
+  output: { 
+    schema: z.object({
+      simplifiedContent: z.string(),
+    })
+  },
   prompt: `You are an expert in communication and accessibility. Your task is to rewrite the given message into simple, plain language that is easy for someone with low literacy to understand.
 
 **Guidelines:**
@@ -44,16 +80,20 @@ Rewrite the above message into simple, plain language.
 `,
 });
 
-const simplifyMessageFlow = ai.defineFlow(
+const simplifyMessageFallback = ai.defineFlow(
   {
-    name: 'simplifyMessageFlow',
-    inputSchema: SimplifyMessageInputSchema,
-    outputSchema: SimplifyMessageOutputSchema,
+    name: 'simplifyMessageFallback',
+    inputSchema: z.object({
+      content: z.string(),
+    }),
+    outputSchema: z.object({
+      simplifiedContent: z.string(),
+    }),
   },
   async (input) => {
     const { output } = await simplifyMessagePrompt(input);
     if (!output) {
-      throw new Error('Failed to generate simplified message.');
+      throw new Error('Failed to generate simplified message with Gemini fallback.');
     }
     return output;
   }

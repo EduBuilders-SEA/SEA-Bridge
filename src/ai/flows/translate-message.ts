@@ -1,34 +1,82 @@
 'use server';
-/**
- * @fileOverview A flow for translating a message into a specified language.
- *
- * - translateMessage - A function that takes a message and returns its translation.
- * - TranslateMessageInput - The input type for the translateMessage function.
- * - TranslateMessageOutput - The return type for the translateMessage function.
- */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-const TranslateMessageInputSchema = z.object({
-  content: z.string().describe('The text content of the message to be translated.'),
-  targetLanguage: z.string().describe('The language to translate the message into (e.g., "Vietnamese", "English").'),
+const _TranslateMessageInputSchema = z.object({
+  content: z.string().describe('The text content to translate.'),
+  targetLanguage: z.string().describe('The target language for translation.'),
+  sourceLanguage: z
+    .string()
+    .optional()
+    .describe('The source language (if known).'),
 });
-export type TranslateMessageInput = z.infer<typeof TranslateMessageInputSchema>;
+export type TranslateMessageInput = z.infer<
+  typeof _TranslateMessageInputSchema
+>;
 
-const TranslateMessageOutputSchema = z.object({
-  translation: z.string().describe('The translated text.'),
+const _TranslateMessageOutputSchema = z.object({
+  translatedContent: z.string().describe('The translated text.'),
+  model: z
+    .enum(['sea-lion', 'gemini'])
+    .describe('The AI model used for translation.'),
 });
-export type TranslateMessageOutput = z.infer<typeof TranslateMessageOutputSchema>;
+export type TranslateMessageOutput = z.infer<
+  typeof _TranslateMessageOutputSchema
+>;
 
-export async function translateMessage(input: TranslateMessageInput): Promise<TranslateMessageOutput> {
-  return translateMessageFlow(input);
+export async function translateMessage(
+  input: TranslateMessageInput
+): Promise<TranslateMessageOutput> {
+  // Try Ollama SEA-LION first (FAST!)
+  try {
+    const { seaLionOllama } = await import('@/lib/ollama/sea-lion-client');
+
+    const translation = await seaLionOllama.translateMessage(
+      input.content,
+      input.targetLanguage,
+      input.sourceLanguage
+    );
+
+    return {
+      translatedContent: translation,
+      model: 'sea-lion',
+    };
+  } catch (error) {
+    console.warn('Ollama SEA-LION failed, falling back to Gemini:', error);
+
+    // Gemini fallback
+    try {
+      const { translation } = await translateMessageFallback({
+        content: input.content,
+        targetLanguage: input.targetLanguage,
+      });
+
+      return {
+        translatedContent: translation,
+        model: 'gemini',
+      };
+    } catch (fallbackError) {
+      console.error('All translation failed:', fallbackError);
+      throw new Error('Translation unavailable');
+    }
+  }
 }
 
+// Gemini fallback (keep this)
 const translateMessagePrompt = ai.definePrompt({
   name: 'translateMessagePrompt',
-  input: { schema: TranslateMessageInputSchema },
-  output: { schema: TranslateMessageOutputSchema },
+  input: {
+    schema: z.object({
+      content: z.string(),
+      targetLanguage: z.string(),
+    }),
+  },
+  output: {
+    schema: z.object({
+      translation: z.string(),
+    }),
+  },
   prompt: `You are an expert translator specializing in communication between teachers and parents in Southeast Asia.
 Your task is to translate the given message into the target language accurately.
 
@@ -49,16 +97,21 @@ Translate the above message into {{targetLanguage}}.
 `,
 });
 
-const translateMessageFlow = ai.defineFlow(
+const translateMessageFallback = ai.defineFlow(
   {
-    name: 'translateMessageFlow',
-    inputSchema: TranslateMessageInputSchema,
-    outputSchema: TranslateMessageOutputSchema,
+    name: 'translateMessageFallback',
+    inputSchema: z.object({
+      content: z.string(),
+      targetLanguage: z.string(),
+    }),
+    outputSchema: z.object({
+      translation: z.string(),
+    }),
   },
   async (input) => {
     const { output } = await translateMessagePrompt(input);
     if (!output) {
-      throw new Error('Failed to generate translation.');
+      throw new Error('Translation failed');
     }
     return output;
   }

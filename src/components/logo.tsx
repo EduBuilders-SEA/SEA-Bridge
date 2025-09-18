@@ -27,7 +27,7 @@ const Logo = ({ className }: { className?: string }) => (
       fill="none"
       strokeLinecap="round"
     />
-    <circle cx="10" cy="35" r="5" fill="hsl(var(--primary))" />
+    <circle cx="10" cy="35" r="5" fill="hsl(var(--primary))" />lkj
     <circle cx="90" cy="35" r="5" fill="hsl(var(--accent))" />
     <line x1="10" y1="35" x2="90" y2="35" stroke="hsl(var(--border))" strokeWidth="2" />
   </svg>

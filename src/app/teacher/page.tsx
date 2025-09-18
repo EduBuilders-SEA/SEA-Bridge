@@ -1,7 +1,10 @@
 'use client';
 
 import { AddContactForm } from '@/components/chat/add-contact-form';
+import { TranslationJobsNotification } from '@/components/chat/translation-jobs-notification';
 import Logo from '@/components/logo';
+import { useLanguageStore } from '@/components/store/language-store';
+import { SmartMicroTours, TourOverlay, TourTrigger } from '@/components/tour';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +27,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Tooltip,
   TooltipContent,
@@ -33,9 +44,11 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { type ContactWithJoins, useContacts } from '@/hooks/use-contacts';
 import { useCurrentProfile } from '@/hooks/use-profile';
+import { languages } from '@/lib/languages';
 import { type ContactCreate } from '@/lib/schemas/contact';
 import {
   ArrowLeft,
+  Languages,
   PencilLine,
   PlusCircle,
   Search,
@@ -53,6 +66,8 @@ export default function TeacherContactsPage() {
     deleteContactAsync,
   } = useContacts();
   const [searchTerm, setSearchTerm] = useState('');
+  const { selectedLanguage: language, setSelectedLanguage: setLanguage } =
+    useLanguageStore();
   const [editOpen, setEditOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -117,151 +132,198 @@ export default function TeacherContactsPage() {
   };
 
   return (
-    <div className='flex flex-col h-screen bg-background font-body'>
-      <header className='flex items-center justify-between p-4 border-b bg-card shadow-xs sticky top-0 z-10'>
-        <div className='flex items-center gap-4'>
-          <Button variant='ghost' size='icon' asChild>
-            <Link href='/'>
-              <ArrowLeft className='w-5 h-5' />
-              <span className='sr-only'>Back to Home</span>
-            </Link>
-          </Button>
-          <h1 className='text-lg font-headline font-semibold'>
-            {profile?.name || 'Teacher'}'s Parent Contacts
-          </h1>
-        </div>
-        <Link href='/' className='hidden sm:block'>
-          <Logo className='w-24 h-auto' />
-        </Link>
-      </header>
-      <main className='flex-1 overflow-y-auto p-4 md:p-6'>
-        <div className='max-w-4xl mx-auto'>
-          <div className='flex justify-between items-center mb-8 gap-4'>
-            <div className='relative flex-1'>
-              <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground' />
-              <Input
-                type='text'
-                placeholder="Search by parent's name..."
-                className='pl-10 w-full'
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <AddContactForm role='parent' onAddContact={handleAddContact}>
-              <Button>
-                <PlusCircle className='w-5 h-5 mr-2' />
-                Add Contact
+    <TourOverlay>
+      <SmartMicroTours context='dashboard'>
+        <div className='flex flex-col h-screen bg-background font-body'>
+          <header className='flex items-center justify-between p-4 border-b bg-card shadow-xs sticky top-0 z-10'>
+            <div className='flex items-center gap-4'>
+              <Button variant='ghost' size='icon' asChild>
+                <Link href='/'>
+                  <ArrowLeft className='w-5 h-5' />
+                  <span className='sr-only'>Back to Home</span>
+                </Link>
               </Button>
-            </AddContactForm>
-          </div>
-          <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6'>
-            {filteredContacts.map((contact: ContactWithJoins) => (
-              <Link href={`/teacher/chat/${contact.id}`} key={contact.id}>
-                <Card className='p-4 text-center hover:shadow-lg hover:border-primary transition-all duration-300 cursor-pointer flex flex-col items-center'>
-                  <Avatar className='w-20 h-20 mb-4'>
-                    <AvatarImage
-                      src={'https://placehold.co/100x100.png'}
-                      alt={contact.parent?.name ?? 'Parent'}
-                      data-ai-hint='parent portrait'
-                    />
-                    <AvatarFallback>
-                      {(contact.parent?.name ?? '?').charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <h3 className='font-headline font-semibold'>
-                    {contact.parent?.name ?? contact.parent?.phone ?? 'Pending'}
-                  </h3>
-                  <p className='text-sm text-muted-foreground'>
-                    Parent of {contact.student_name}
-                  </p>
-                  <div className='mt-4 flex gap-2'>
-                    <TooltipProvider delayDuration={0}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant='outline'
-                            size='icon'
-                            aria-label='Edit contact'
-                            onClick={(e) => {
-                              e.preventDefault();
-                              openEdit(contact);
-                            }}
-                          >
-                            <PencilLine className='w-4 h-4' />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Edit</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant='destructive'
-                            size='icon'
-                            aria-label='Remove contact'
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setConfirmDeleteId(contact.id);
-                            }}
-                          >
-                            <Trash2 className='w-4 h-4' />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Remove</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </Card>
+              <h1 className='text-lg font-headline font-semibold'>
+                {profile?.name || 'Teacher'}'s Parent Contacts
+              </h1>
+            </div>
+            <div className='flex items-center gap-3'>
+              <TranslationJobsNotification />
+              <TourTrigger variant='floating' />
+              <Link href='/' className='hidden sm:block'>
+                <Logo className='w-24 h-auto' />
               </Link>
-            ))}
-          </div>
-        </div>
-      </main>
-      {/* Edit dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className='sm:max-w-md'>
-          <DialogHeader>
-            <DialogTitle>Edit Student Name</DialogTitle>
-            <DialogDescription>
-              Update the child's name for this contact.
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            value={editingName}
-            onChange={(e) => setEditingName(e.target.value)}
-            placeholder='e.g. John Doe'
-          />
-          <DialogFooter>
-            <Button variant='ghost' onClick={() => setEditOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={saveEdit}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </div>
+          </header>
+          <main className='flex-1 overflow-y-auto p-4 md:p-6'>
+            <div className='max-w-4xl mx-auto'>
+              <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4'>
+                <div className='flex flex-col sm:flex-row gap-4 flex-1'>
+                  <div className='relative flex-1'>
+                    <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground' />
+                    <Input
+                      type='text'
+                      placeholder="Search by parent's name..."
+                      className='pl-10 w-full'
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <div className='grid gap-1.5 sm:min-w-48'>
+                    <Label
+                      htmlFor='language-select'
+                      className='flex items-center gap-2 text-sm text-muted-foreground'
+                    >
+                      <Languages className='w-4 h-4' />
+                      My Language
+                    </Label>
+                    <Select value={language} onValueChange={setLanguage}>
+                      <SelectTrigger
+                        id='language-select'
+                        data-tour='language-selector'
+                        className='w-full'
+                      >
+                        <SelectValue placeholder='Select language' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {languages.map((lang) => (
+                          <SelectItem key={lang.value} value={lang.value}>
+                            {lang.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <AddContactForm role='parent' onAddContact={handleAddContact}>
+                  <Button data-tour='add-contact-button'>
+                    <PlusCircle className='w-5 h-5 mr-2' />
+                    Add Contact
+                  </Button>
+                </AddContactForm>
+              </div>
+              <div
+                className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6'
+                data-tour='contact-grid'
+              >
+                {filteredContacts.map((contact: ContactWithJoins) => (
+                  <Link href={`/teacher/chat/${contact.id}`} key={contact.id}>
+                    <Card
+                      className='p-4 text-center hover:shadow-lg hover:border-primary transition-all duration-300 cursor-pointer flex flex-col items-center'
+                      data-tour='contact-card'
+                    >
+                      <Avatar className='w-20 h-20 mb-4'>
+                        <AvatarImage
+                          src={'https://placehold.co/100x100.png'}
+                          alt={contact.parent?.name ?? 'Parent'}
+                          data-ai-hint='parent portrait'
+                        />
+                        <AvatarFallback>
+                          {(contact.parent?.name ?? '?').charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <h3 className='font-headline font-semibold'>
+                        {contact.parent?.name ?? 'Pending'}
+                      </h3>
+                      <p className='text-sm text-muted-foreground'>
+                        Parent of {contact.student_name}
+                      </p>
+                      {contact.parent?.phone && (
+                        <p className='text-xs text-muted-foreground mt-1'>
+                          {contact.parent.phone}
+                        </p>
+                      )}
+                      <div className='mt-4 flex gap-2'>
+                        <TooltipProvider delayDuration={0}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant='outline'
+                                size='icon'
+                                aria-label='Edit contact'
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  openEdit(contact);
+                                }}
+                              >
+                                <PencilLine className='w-4 h-4' />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Edit</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant='destructive'
+                                size='icon'
+                                aria-label='Remove contact'
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setConfirmDeleteId(contact.id);
+                                }}
+                              >
+                                <Trash2 className='w-4 h-4' />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Remove</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </main>
 
-      {/* Delete confirm */}
-      <AlertDialog
-        open={!!confirmDeleteId}
-        onOpenChange={(open) => {
-          if (!open) setConfirmDeleteId(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove contact?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove the parent-teacher link. Messages are not
-              deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+          {/* Edit dialog */}
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogContent className='sm:max-w-md'>
+              <DialogHeader>
+                <DialogTitle>Edit Student Name</DialogTitle>
+                <DialogDescription>
+                  Update the child's name for this contact.
+                </DialogDescription>
+              </DialogHeader>
+              <Input
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                placeholder='e.g. John Doe'
+              />
+              <DialogFooter>
+                <Button variant='ghost' onClick={() => setEditOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={saveEdit}>Save</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete confirm */}
+          <AlertDialog
+            open={!!confirmDeleteId}
+            onOpenChange={(open) => {
+              if (!open) setConfirmDeleteId(null);
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove contact?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will remove the parent-teacher link. Messages are not
+                  deleted.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete}>
+                  Remove
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </SmartMicroTours>
+    </TourOverlay>
   );
 }

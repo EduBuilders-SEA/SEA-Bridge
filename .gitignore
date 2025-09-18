@@ -48,3 +48,4 @@ firestore-debug.log
 # vscode settings (personal preferences)
 .vscode/
 .cursor/    
+.claude/

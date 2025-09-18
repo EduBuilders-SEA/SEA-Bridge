@@ -55,7 +55,19 @@ export function useContacts() {
         child_name: input.childName ?? null,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific error cases with user-friendly messages
+        if (error.message === 'CONTACT_ALREADY_EXISTS') {
+          throw new Error('This contact already exists');
+        } else if (error.message === 'NO_TARGET') {
+          throw new Error('No user found with this phone number');
+        } else if (error.message === 'CHILD_NAME_REQUIRED') {
+          throw new Error('Child name is required');
+        } else if (error.message === 'PROFILE_NOT_FOUND') {
+          throw new Error('Your profile was not found');
+        }
+        throw error;
+      }
       return data; // inserted contact row
     },
     onSuccess: () => {
