@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './use-auth';
 import { useNotificationSound } from './use-notification-sound';
 import { v4 as uuidv4 } from 'uuid';
+import { useMessagePersistence } from './use-message-persistence';
 
 const EVENT_MESSAGE_TYPE = 'message';
 const EVENT_MESSAGE_EDIT = 'message_edit';
@@ -24,6 +25,7 @@ const EVENT_TRANSLATION_COMPLETE = 'translation_complete';
 export function useRealtimeMessages(contactLinkId: string) {
   const { user } = useAuth();
   const { playNotificationSound } = useNotificationSound();
+  const { persistMessage } = useMessagePersistence();
   const supabase = useMemo(() => createClient(), []);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [channel, setChannel] = useState<ReturnType<
@@ -63,8 +65,41 @@ export function useRealtimeMessages(contactLinkId: string) {
         },
       });
 
+      // ✅ CRITICAL FIX: Persist message to database FIRST
+      try {
+        await persistMessage({
+          id: message.id,
+          sent_at: message.sent_at,
+          content: message.content,
+          message_type: message.message_type,
+          contact_link_id: contactLinkId,
+          variants: message.variants,
+          file_url: message.file_url,
+        });
+        console.log('✅ Message persisted to database:', message.id);
+        
+        // ✅ CRITICAL FIX: Update React Query cache immediately
+        queryClient.setQueryData<ChatMessage[]>(
+          ['messages', contactLinkId],
+          (old = []) => {
+            const exists = old.some((m) => m.id === message.id);
+            if (exists) return old;
+            
+            return [...old, message].sort(
+              (a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime()
+            );
+          }
+        );
+        console.log('✅ React Query cache updated with new message:', message.id);
+      } catch (error) {
+        console.error('❌ Failed to persist message:', error);
+        // Continue with broadcast even if persistence fails
+      }
+
+      // Add to local state
       setMessages((current) => [...current, message]);
 
+      // Broadcast to other users
       await channel.send({
         type: 'broadcast',
         event: EVENT_MESSAGE_TYPE,
@@ -74,7 +109,7 @@ export function useRealtimeMessages(contactLinkId: string) {
       console.log('📤 Message broadcast:', message.id);
       return message;
     },
-    [user, channel, isConnected, contactLinkId]
+    [user, channel, isConnected, contactLinkId, persistMessage, queryClient]
   );
 
   // Broadcast helpers for document translation
@@ -204,6 +239,19 @@ export function useRealtimeMessages(contactLinkId: string) {
               new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime()
           );
         });
+
+        // ✅ CRITICAL FIX: Update React Query cache with received message
+        queryClient.setQueryData<ChatMessage[]>(
+          ['messages', contactLinkId],
+          (old = []) => {
+            const exists = old.some((m) => m.id === message.id);
+            if (exists) return old;
+            
+            return [...old, message].sort(
+              (a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime()
+            );
+          }
+        );
       })
       // Listen for message edits
       .on('broadcast', { event: EVENT_MESSAGE_EDIT }, (payload) => {

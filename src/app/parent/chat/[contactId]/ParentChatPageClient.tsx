@@ -293,12 +293,25 @@ export default function ParentChatPageClient({
     }
   };
 
-  const handleSendFile = (file: File) => {
-    return sendMessage({
-      content: file.name,
-      message_type: 'image',
-      file_url: URL.createObjectURL(file),
-    });
+  const handleSendFile = async (file: File) => {
+    // Upload file first, then send message with the uploaded URL
+    try {
+      // Check if file has uploaded URL (from MessageInput)
+      const uploadedUrl = (file as any).uploadedUrl;
+      
+      return sendMessage({
+        content: `📎 ${file.name}`,
+        message_type: 'file',
+        file_url: uploadedUrl || URL.createObjectURL(file), // Use uploaded URL if available
+      });
+    } catch (error) {
+      console.error('Failed to send file:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not send file. Please try again.',
+      });
+    }
   };
 
   const handleSimplify = async (messageId: string) => {

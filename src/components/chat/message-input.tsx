@@ -11,7 +11,6 @@ import {
 import { useLanguageStore } from '@/components/store/language-store';
 import { useContacts } from '@/hooks/use-contacts';
 import { useFileUpload } from '@/hooks/use-file-upload';
-import { useMessagePersistence } from '@/hooks/use-message-persistence';
 import { useCurrentProfile } from '@/hooks/use-profile';
 import { useToast } from '@/hooks/use-toast';
 import { useVoiceMessages } from '@/hooks/use-voice-messages';
@@ -41,7 +40,6 @@ export default function MessageInput({
   const [text, setText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { persistMessage } = useMessagePersistence();
   const { uploadFileAsync, isUploading } = useFileUpload();
   const { data: profile } = useCurrentProfile();
   const { contacts } = useContacts();
@@ -53,32 +51,14 @@ export default function MessageInput({
 
   const handleSend = async () => {
     if (text.trim()) {
-      const sent = await onSendMessage(text);
-
-      persistMessage({
-        id: sent?.id,
-        sent_at: sent?.sent_at,
-        content: text,
-        message_type: 'text',
-        contact_link_id: contactId,
-      });
-
+      await onSendMessage(text);
       setText('');
     }
   };
 
   const handleSendSms = async () => {
     if (text.trim() && onSendSms) {
-      const sent = await onSendSms(text);
-
-      persistMessage({
-        id: sent?.id,
-        sent_at: sent?.sent_at,
-        content: `[SMS] ${text}`,
-        message_type: 'text',
-        contact_link_id: contactId,
-      });
-
+      await onSendSms(text);
       setText('');
     }
   };
@@ -115,18 +95,15 @@ export default function MessageInput({
       // Upload file to Supabase Storage
       const uploadResult = await uploadFileAsync(file);
 
-      // Send file message if onSendFile is provided
-      const sent = onSendFile ? await onSendFile(file) : null;
-
-      // Persist message with correct type 'file'
-      persistMessage({
-        id: sent?.id,
-        sent_at: sent?.sent_at,
-        content: `📎 ${file.name}`,
-        message_type: 'file', // Changed from 'document' to 'file'
-        contact_link_id: contactId,
-        file_url: uploadResult.signedUrl ?? uploadResult.path,
-      });
+      // Send file message with the uploaded URL
+      if (onSendFile) {
+        // Create a modified file object with the uploaded URL
+        const fileWithUrl = new File([file], file.name, { type: file.type });
+        // Add the URL as a property (this is a hack, but works for our use case)
+        (fileWithUrl as any).uploadedUrl = uploadResult.signedUrl ?? uploadResult.path;
+        
+        await onSendFile(fileWithUrl);
+      }
     } catch (error) {
       console.error('File upload error:', error);
       toast({
