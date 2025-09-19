@@ -1,6 +1,5 @@
 'use client';
 
-import { checkTranslationJobStatus } from '@/app/actions/translation-jobs';
 import { createClient } from '@/lib/supabase/client';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -42,67 +41,48 @@ export function useTranslationJobs() {
     }
   }, []);
 
-  // ✅ Enhanced effect with background polling management
+  // Initial load + Realtime subscription
   useEffect(() => {
-    // Initial load
+    const supabase = createClient();
+
+    // Load initial data
     refreshJobs();
-  }, []); // Only run on mount
 
-  // ✅ Set up client-side polling for active jobs using server actions
-  useEffect(() => {
-    const activeJobIds = jobs
-      .filter((job) => ['SUBMITTED', 'IN_PROGRESS'].includes(job.status))
-      .map((job) => job.aws_job_id);
-
-    if (activeJobIds.length === 0) {
-      return; // No active jobs to poll
-    }
-
-    const pollActiveJobs = async () => {
-      try {
-        // Check status of all active jobs
-        const statusPromises = activeJobIds.map(async (jobId) => {
-          try {
-            return await checkTranslationJobStatus(jobId);
-          } catch (error) {
-            console.error(`Error checking status for job ${jobId}:`, error);
-            return null;
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('translation-jobs')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'translation_jobs'
+        },
+        (payload) => {
+          // Handle realtime updates
+          if (payload.eventType === 'INSERT') {
+            setJobs(prev => [payload.new as TranslationJob, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setJobs(prev => prev.map(job =>
+              job.id === payload.new.id ? payload.new as TranslationJob : job
+            ));
+          } else if (payload.eventType === 'DELETE') {
+            setJobs(prev => prev.filter(job => job.id !== payload.old.id));
           }
-        });
-
-        const statuses = await Promise.all(statusPromises);
-
-        // Check if any job completed or failed
-        const hasCompletedJob = statuses.some(
-          (status) =>
-            status &&
-            (status.status === 'COMPLETED' || status.status === 'FAILED')
-        );
-
-        if (hasCompletedJob) {
-          // Refresh all jobs when a job completes
-          refreshJobs();
         }
-      } catch (error) {
-        console.error('Error polling active jobs:', error);
-      }
-    };
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // Subscribed successfully
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('Error subscribing to translation jobs updates');
+        }
+      });
 
-    // Poll every 30 seconds for active jobs
-    const pollInterval = setInterval(pollActiveJobs, 30000);
-
-    // Also poll immediately
-    pollActiveJobs();
-
+    // Cleanup
     return () => {
-      clearInterval(pollInterval);
+      supabase.removeChannel(channel);
     };
-  }, [jobs, refreshJobs]);
-
-  // ✅ Optimized periodic refresh (less frequent since background polling handles active jobs)
-  useEffect(() => {
-    const interval = setInterval(refreshJobs, 120000); // 2 minutes instead of 30 seconds
-    return () => clearInterval(interval);
   }, [refreshJobs]);
 
   const activeJobsCount = jobs.filter((job) =>
