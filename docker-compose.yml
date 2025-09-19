@@ -4,8 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - '3000:3000'
+    expose:
+      - '3000' # only exposed to internal network, Caddy will proxy from 80/443
     env_file:
       - .env
     environment:
@@ -18,11 +18,29 @@ services:
       - sea-bridge-network
     restart: unless-stopped
 
+  # Caddy reverse proxy with automatic HTTPS
+  caddy:
+    image: caddy:latest
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN}
+    depends_on:
+      - sea-bridge-app
+    networks:
+      - sea-bridge-network
+    restart: unless-stopped
+
   # Ollama SEA-LION Service
   ollama:
     image: ollama/ollama:latest
-    ports:
-      - '11434:11434'
+    expose:
+      - '11434'
     volumes:
       - ollama_data:/root/.ollama
     environment:
@@ -35,6 +53,8 @@ services:
 
 volumes:
   ollama_data:
+  caddy_data:
+  caddy_config:
 
 networks:
   sea-bridge-network:

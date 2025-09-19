@@ -1,5 +1,5 @@
 # SEA Bridge – Run Guide
-
+****
 ## Hackathon Context
 
 Participating in the SEA Developer Challenge: https://seadeveloperchallenge.ai  
@@ -28,6 +28,33 @@ npm run dev          # Next.js on :9002
 npm run typecheck
 ```
 
+## Deployment with HTTPS (Caddy)
+
+This project includes an example Caddy reverse-proxy configuration to obtain automatic TLS certificates via Let's Encrypt.
+
+Steps (summary):
+
+1. Point your domain (e.g. `seabridge.site`) A records to your server IP for both `@` and `www`.
+2. Set `DOMAIN=seabridge.site` and `NEXT_PUBLIC_APP_URL=https://seabridge.site` in your `.env` or environment.
+3. Start the stack with Docker Compose (manual method):
+
+```bash
+# export the domain or set in your .env
+export DOMAIN=seabridge.site
+
+# bring the stack down then up so Caddy reads the Caddyfile with the DOMAIN env
+docker-compose down
+DOMAIN=$DOMAIN docker-compose up -d
+
+# watch Caddy logs while certificates are obtained
+docker-compose logs -f caddy
+```
+
+4. Add `seabridge.site` to Firebase Console → Authentication → Authorized domains.
+
+Notes:
+- The repository includes a convenience helper `deploy-https.sh` which automates the above; it is optional and not required for deployment — you can run the manual commands above instead. If you prefer not to commit helper scripts to your remote/cicd pipeline, feel free to keep that script locally only.
+- If you prefer to manage TLS certificates yourself, replace the `Caddyfile` and Caddy service with your preferred proxy.
 Expose tunnel (needed for phone auth reCAPTCHA):
 ```bash
 npm run dev:tunnel
