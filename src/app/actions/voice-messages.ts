@@ -2,7 +2,6 @@
 
 import { transcribeAndTranslate } from '@/ai/flows/transcribe-and-translate';
 import { createClient } from '@/lib/supabase/server';
-import type { SupabaseChannel } from '@/lib/supabase/types';
 import { revalidatePath } from 'next/cache';
 
 export interface SendVoiceMessageInput {
@@ -11,7 +10,6 @@ export interface SendVoiceMessageInput {
   targetLanguage: string;
   userLanguage?: string;
   accessToken: string;
-  channel: SupabaseChannel;
 }
 
 export interface VoiceMessageResult {
@@ -82,8 +80,7 @@ export async function sendVoiceMessage(
       audioDataUri,
       targetLanguage,
       userLanguage,
-      accessToken,
-      input.channel
+      accessToken
     ).catch((error) => {
       console.error('Background transcription failed:', error);
     });
@@ -104,8 +101,7 @@ async function transcribeAndTranslateVoiceMessage(
   audioDataUri: string,
   targetLanguage: string,
   userLanguage: string | undefined,
-  accessToken: string,
-  channel: SupabaseChannel
+  accessToken: string
 ) {
   try {
     const supabase = await createClient(accessToken);
@@ -151,29 +147,8 @@ async function transcribeAndTranslateVoiceMessage(
         })
         .eq('id', messageId);
     } else {
-      // Broadcast the successful transcription update
-      try {
-        
-        if (channel) {
-          await channel.send({
-            type: 'broadcast',
-            event: 'message_edit',
-            payload: {
-              messageId: updatedMessage.id,
-              content: updatedMessage.content,
-              variants: updatedMessage.variants,
-              editedBy: 'system',
-              editedAt: new Date().toISOString(),
-            },
-          });
-
-          console.warn('📤 Broadcasted transcription update for message:', updatedMessage.id);
-        } else {
-          console.warn('⚠️ Channel is null, cannot broadcast transcription update for message:', updatedMessage.id);
-        }
-      } catch (broadcastError) {
-        console.warn('⚠️ Failed to broadcast transcription update:', broadcastError);
-      }
+      // Note: Transcription update broadcasting is handled by the client via realtime subscriptions
+      // Server actions should focus on data updates, not realtime broadcasting
     }
   } catch (error) {
     console.error('Transcription error:', error);

@@ -10,6 +10,8 @@ import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { FileText, Loader2, Pause, Play, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { createClient } from '@/lib/supabase/client';
 
 interface VoiceNotePlayerProps {
   audioDataUri: string;
@@ -17,6 +19,8 @@ interface VoiceNotePlayerProps {
   translatedContent?: string;
   isTranscribing?: boolean;
   isSentByCurrentUser: boolean;
+  messageId?: string;
+  contactLinkId?: string;
 }
 
 const formatTime = (seconds: number) => {
@@ -32,6 +36,8 @@ export const VoiceNotePlayer = ({
   translatedContent,
   isTranscribing = false,
   isSentByCurrentUser,
+  messageId,
+  contactLinkId,
 }: VoiceNotePlayerProps) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -39,6 +45,45 @@ export const VoiceNotePlayer = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(1);
   const [showTranscript, setShowTranscript] = useState(false);
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+
+  // Polling mechanism for transcription updates
+  useEffect(() => {
+    if (!isTranscribing || !messageId || !contactLinkId) return;
+
+    const pollForTranscription = async () => {
+      try {
+        const { data: message, error } = await supabase
+          .from('messages')
+          .select('variants, content')
+          .eq('id', messageId)
+          .single();
+
+        if (error) {
+          console.error('Failed to poll for transcription:', error);
+          return;
+        }
+
+        // Check if transcription is complete
+        if (message.variants && !message.variants.isTranscribing) {
+          console.warn('🔄 Transcription completed, invalidating cache for message:', messageId);
+          // Invalidate the messages cache to trigger a refetch
+          queryClient.invalidateQueries({
+            queryKey: ['messages', contactLinkId],
+          });
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    };
+
+    // Poll every 2 seconds while transcribing
+    const interval = setInterval(pollForTranscription, 2000);
+
+    // Clean up interval when component unmounts or transcription completes
+    return () => clearInterval(interval);
+  }, [isTranscribing, messageId, contactLinkId, queryClient, supabase]);
 
   useEffect(() => {
     const audio = audioRef.current;

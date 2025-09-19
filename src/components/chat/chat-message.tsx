@@ -315,6 +315,8 @@ const MessageContent = ({
         translatedContent={message.variants.translatedContent}
         isTranscribing={message.variants.isTranscribing}
         isSentByCurrentUser={isSentByCurrentUser}
+        messageId={message.id}
+        contactLinkId={message.contact_link_id}
       />
     );
   }

@@ -47,7 +47,6 @@ export function useVoiceMessages(
         targetLanguage,
         userLanguage, // Pass user's preferred language
         accessToken,
-        channel
       });
     },
     onSuccess: (result) => {
