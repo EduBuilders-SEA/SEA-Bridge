@@ -2,7 +2,9 @@
 
 import { sendVoiceMessage } from '@/app/actions/voice-messages';
 import { useAuth } from '@/hooks/use-auth';
+import { useCurrentProfile } from '@/hooks/use-profile';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguageStore } from '@/components/store/language-store';
 import type { SupabaseChannel } from '@/lib/supabase/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -13,6 +15,8 @@ export function useVoiceMessages(
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { selectedLanguage } = useLanguageStore();
+  const { data: profile } = useCurrentProfile();
 
   const sendVoice = useMutation({
     mutationFn: async ({
@@ -27,10 +31,21 @@ export function useVoiceMessages(
       // Get access token
       const accessToken = await user.getIdToken();
 
+      // Determine user's preferred language (selected language > profile preference > fallback)
+      const userLanguage = selectedLanguage || profile?.preferred_language || 'English';
+
+      console.warn('🎙️ Voice message with user language:', {
+        selectedLanguage,
+        profileLanguage: profile?.preferred_language,
+        userLanguage,
+        targetLanguage,
+      });
+
       return sendVoiceMessage({
         contactLinkId,
         audioDataUri,
         targetLanguage,
+        userLanguage, // Pass user's preferred language
         accessToken,
       });
     },

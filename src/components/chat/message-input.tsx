@@ -91,7 +91,7 @@ export default function MessageInput({
     const targetLanguage = selectedLanguage || 'English'; // Fallback to English if no language selected
 
     try {
-      await sendVoice({
+      sendVoice({
         audioDataUri,
         targetLanguage,
       });

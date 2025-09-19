@@ -21,6 +21,12 @@ const _TranscribeAndTranslateInputSchema = z.object({
     .describe(
       'The language to translate the transcription into (e.g., "Vietnamese", "English").'
     ),
+  userLanguage: z
+    .string()
+    .optional()
+    .describe(
+      'The preferred language of the user initiating the translation (e.g., "English", "Tagalog").'
+    ),
 });
 export type TranscribeAndTranslateInput = z.infer<
   typeof _TranscribeAndTranslateInputSchema
@@ -50,16 +56,17 @@ export type TranscribeAndTranslateOutput = z.infer<
 export async function transcribeAndTranslate(
   input: TranscribeAndTranslateInput
 ): Promise<TranscribeAndTranslateOutput> {
-  const { audioDataUri, targetLanguage } = input;
+  const { audioDataUri, targetLanguage, userLanguage } = input;
 
   console.warn('🎙️ Transcribe & Translate Debug:', {
     targetLanguage,
+    userLanguage,
     audioDataUriLength: audioDataUri.length,
   });
 
   // Step 1: Use Gemini for transcription with enhanced prompt
   const transcriptionResult = await ai.generate({
-    model: 'googleai/gemini-2.0-flash',
+    model: 'googleai/gemini-2.5-flash',
     prompt: [
       {
         text: `Transcribe the following audio recording accurately. Focus on:
@@ -105,7 +112,18 @@ Audio to transcribe:`,
     confidence,
   });
 
-  // Step 2: Skip translation only if target language matches detected language
+  // Step 2: Determine effective target language
+  // Use userLanguage if provided, otherwise fall back to targetLanguage
+  const effectiveTargetLanguage = userLanguage ?? targetLanguage;
+
+  console.warn('🌍 Language Selection:', {
+    targetLanguage,
+    userLanguage,
+    effectiveTargetLanguage,
+    detectedLanguage,
+  });
+
+  // Step 3: Skip translation only if effective target language matches detected language
   // Compare languages in a case-insensitive way and handle common variations
   const normalizeLanguage = (lang: string) => {
     const normalized = lang.toLowerCase().trim();
@@ -180,18 +198,19 @@ Audio to transcribe:`,
     return normalized;
   };
 
-  const normalizedTarget = normalizeLanguage(targetLanguage);
+  const normalizedEffectiveTarget = normalizeLanguage(effectiveTargetLanguage);
   const normalizedDetected = normalizeLanguage(detectedLanguage);
 
   console.warn('🌍 Language Normalization:', {
     originalTarget: targetLanguage,
     originalDetected: detectedLanguage,
-    normalizedTarget,
+    effectiveTargetLanguage,
+    normalizedEffectiveTarget,
     normalizedDetected,
-    shouldSkipTranslation: normalizedTarget === normalizedDetected,
+    shouldSkipTranslation: normalizedEffectiveTarget === normalizedDetected,
   });
 
-  if (normalizedTarget === normalizedDetected) {
+  if (normalizedEffectiveTarget === normalizedDetected) {
     return {
       transcription,
       translation: transcription, // Same as transcription since no translation needed
@@ -201,13 +220,13 @@ Audio to transcribe:`,
     };
   }
 
-  // Step 3: Use Ollama SEA-LION for translation with Gemini fallback
+  // Step 4: Use Ollama SEA-LION for translation with Gemini fallback
   try {
     const { seaLionOllama } = await import('@/lib/ollama/sea-lion-client');
 
     const translation = await seaLionOllama.translateMessage(
       transcription,
-      targetLanguage
+      effectiveTargetLanguage
     );
 
     return {
@@ -227,7 +246,7 @@ Audio to transcribe:`,
     const translationResult = await ai.generate({
       prompt: `You are a professional translator specializing in Southeast Asian languages for parent-teacher communication.
 
-Task: Translate the following text to ${targetLanguage} while preserving all critical information.
+Task: Translate the following text to ${effectiveTargetLanguage} while preserving all critical information.
 
 CRITICAL REQUIREMENTS:
 - Preserve ALL proper nouns (names, places, school subjects)

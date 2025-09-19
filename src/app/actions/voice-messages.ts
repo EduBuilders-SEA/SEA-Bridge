@@ -8,6 +8,7 @@ export interface SendVoiceMessageInput {
   contactLinkId: string;
   audioDataUri: string;
   targetLanguage: string;
+  userLanguage?: string;
   accessToken: string;
 }
 
@@ -30,7 +31,7 @@ export async function sendVoiceMessage(
   input: SendVoiceMessageInput
 ): Promise<VoiceMessageResult> {
   try {
-    const { contactLinkId, audioDataUri, targetLanguage, accessToken } = input;
+    const { contactLinkId, audioDataUri, targetLanguage, userLanguage, accessToken } = input;
     const supabase = await createClient(accessToken);
 
     // Extract user ID from Firebase token (accessToken)
@@ -78,6 +79,7 @@ export async function sendVoiceMessage(
       message.id,
       audioDataUri,
       targetLanguage,
+      userLanguage,
       accessToken
     ).catch((error) => {
       console.error('Background transcription failed:', error);
@@ -98,15 +100,17 @@ async function transcribeAndTranslateVoiceMessage(
   messageId: string,
   audioDataUri: string,
   targetLanguage: string,
+  userLanguage: string | undefined,
   accessToken: string
 ) {
   try {
     const supabase = await createClient(accessToken);
 
-    // Perform transcription and translation
+    // Perform transcription and translation with user's language preference
     const result = await transcribeAndTranslate({
       audioDataUri,
       targetLanguage,
+      userLanguage, // Pass user's preferred language
     });
 
     // Update message with results

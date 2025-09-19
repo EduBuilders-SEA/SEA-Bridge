@@ -61,11 +61,18 @@ export function useFastAutoTranslation(
         const alreadyTranslated = message.variants?.translatedContent && 
                                  message.variants?.translatedLanguage === userLanguage;
         
+        // Allow translation of:
+        // - text messages (content)
+        // - voice messages that already have a transcription available (use transcription)
+        const canTranslateForReceiver =
+          message.message_type === 'text' ||
+          (message.message_type === 'voice' && !!message.variants?.transcription);
+
         return (
           !processedRef.current.has(key) &&
           !alreadyTranslated && // **KEY FIX**: Don't re-translate existing translations
           message.sender_id !== currentUserId &&
-          message.message_type === 'text'
+          canTranslateForReceiver
         );
       })
       // **NEWEST FIRST**: Sort by timestamp descending
@@ -95,10 +102,20 @@ export function useFastAutoTranslation(
     setIsTranslating((prev) => new Set(prev).add(message.id));
 
     try {
+      // Choose source text: for voice use the stored transcription, otherwise use content
+      const sourceText =
+        message.message_type === 'voice' && message.variants?.transcription
+          ? message.variants.transcription
+          : message.content;
+
+      const sourceLanguage =
+        message.variants?.originalLanguage ??
+        'Unknown';
+
       const result = await translateMessage({
-        content: message.content,
+        content: sourceText,
         targetLanguage: userLanguage,
-        sourceLanguage: 'Unknown',
+        sourceLanguage,
       });
 
       const translationResult: TranslationResult = {
@@ -119,6 +136,7 @@ export function useFastAutoTranslation(
                 ...msg,
                 variants: {
                   ...msg.variants,
+                  // Keep transcription for voice messages and add translatedContent for receiver
                   translatedContent: result.translatedContent,
                   translatedLanguage: userLanguage,
                   translationModel: result.model,

@@ -90,8 +90,7 @@ Your task is to translate the given message into the target language accurately.
 
 Do not alter or localize these specific entities.
 
-Original Message:
-"{{content}}"
+Original Message: "{{content}}"
 
 Translate the above message into {{targetLanguage}}.
 `,
